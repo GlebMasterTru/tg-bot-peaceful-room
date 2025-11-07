@@ -69,8 +69,9 @@ diary_menu = InlineKeyboardMarkup(
 # МЕНЮ "ТЕХПОДДЕРЖКА" (Help Menu)
 help_menu = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text='Тык!', url='https://t.me/peaceful_room_help')],
-        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
+        [InlineKeyboardButton(text='Тык!', 
+                              url='https://t.me/peaceful_room_help')],
+        [InlineKeyboardButton(text='Назад', 
+                              callback_data='back_to_main')]
     ]
 )
-

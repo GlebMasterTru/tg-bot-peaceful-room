@@ -704,3 +704,32 @@ def sync_is_vip_for_all_users():
     except Exception as e:
         print(f"❌ Ошибка при синхронизации is_vip: {e}")
         return False
+    
+
+def get_all_users():
+    print("📥 Загрузка пользователей для рассылки...")
+    
+    try:
+        all_data = users_worksheet.get_all_records()
+        
+        users = []
+        for row in all_data:
+            user_id = row.get('user_id')
+            # Пропускаем строки без user_id
+            if user_id:
+                try:
+                    users.append({
+                        'user_id': int(user_id),
+                        'username': row.get('username', ''),
+                        'first_name': row.get('first_name', '')
+                    })
+                except ValueError:
+                    print(f"⚠️ Некорректный user_id: {user_id}")
+                    continue
+        
+        print(f"✅ Загружено {len(users)} пользователей для рассылки")
+        return users
+        
+    except Exception as e:
+        print(f"❌ Ошибка загрузки пользователей: {e}")
+        return []
