@@ -282,28 +282,32 @@ async def process_broadcast_text(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
     
-    broadcast_text = message.text
-    
-    await state.update_data(broadcast_text=broadcast_text)
+    # Сохраняем ID сообщения и чата
+    await state.update_data(
+        message_id=message.message_id,
+        chat_id=message.chat.id
+    )
     
     # Показываем превью с кнопками
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-        [InlineKeyboardButton(
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
                 text="✅ Отправить всем", 
-                callback_data="broadcast_confirm")],
-        [InlineKeyboardButton(
+                callback_data="broadcast_confirm"
+            )
+        ],
+        [
+            InlineKeyboardButton(
                 text="❌ Отмена", 
-                callback_data="broadcast_cancel")]
+                callback_data="broadcast_cancel"
+            )
         ]
-    )
+    ])
     
     await message.answer(
         f"📢 **ПРЕВЬЮ РАССЫЛКИ:**\n\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"{broadcast_text}\n"
-        f"━━━━━━━━━━━━━━━\n\n"
-        f"Отправить это сообщение ВСЕМ пользователям?",
+        f"👆 Сообщение выше будет отправлено ВСЕМ пользователям.\n\n"
+        f"Подтверждаешь?",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -328,12 +332,13 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
     if callback.from_user.id != ADMIN_ID:
         return
     
-    # Получаем текст из FSM
+    # Получаем данные из FSM
     data = await state.get_data()
-    text_to_send = data.get('broadcast_text')
+    message_id = data.get('message_id')
+    chat_id = data.get('chat_id')
     
-    if not text_to_send:
-        await callback.message.edit_text("❌ Ошибка: текст рассылки не найден.")
+    if not message_id or not chat_id:
+        await callback.message.edit_text("❌ Ошибка: сообщение не найдено.")
         await state.clear()
         return
     
@@ -341,6 +346,7 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
     
     # Получаем всех пользователей
+    from app.database import get_all_users
     users = get_all_users()
     
     if not users:
@@ -353,14 +359,16 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
     blocked = 0
     errors = 0
     
-    # РАССЫЛКА
+    # РАССЫЛКА через copy_message
     for i, user in enumerate(users, 1):
         try:
             user_id = user['user_id']
             
-            await callback.bot.send_message(
+            # Копируем сообщение целиком (с фото/видео/документами)
+            await callback.bot.copy_message(
                 chat_id=user_id,
-                text=text_to_send
+                from_chat_id=chat_id,
+                message_id=message_id
             )
             success += 1
             
@@ -376,21 +384,17 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
                         parse_mode="Markdown"
                     )
                 except:
-                    # Игнорируем ошибки редактирования (если слишком часто)
                     pass
             
-            # Задержка против бана (100ms = ~10 сообщений/сек)
+            # Задержка против бана, 100ms
             await asyncio.sleep(0.10)
             
         except TelegramForbiddenError:
-            # Пользователь заблокировал бота
             blocked += 1
         except TelegramBadRequest as e:
-            # Бот не может отправить (юзер удалил аккаунт и т.д.)
             errors += 1
             print(f"⚠️ Ошибка отправки {user_id}: {e}")
         except Exception as e:
-            # Другие ошибки
             errors += 1
             print(f"❌ Неизвестная ошибка {user_id}: {e}")
     
@@ -406,7 +410,6 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
         parse_mode="Markdown"
     )
     
-    # Очищаем состояние
     await state.clear()
 
 @router.message(Command("myid"))
