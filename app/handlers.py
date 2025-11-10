@@ -89,13 +89,6 @@ async def go_to_profile(callback: CallbackQuery):
         reply_markup=kb.profile_menu
     )
 
-@router.callback_query(F.data == 'go_to_room_entrance')
-async def go_to_room_entrance(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.edit_text(
-        txt.ROOM_ENTRANCE_TEXT,
-        reply_markup=kb.room_entrance_menu
-    )
 
 @router.callback_query(F.data == 'go_to_room_entrance')
 async def callback_room_entrance(callback: CallbackQuery):

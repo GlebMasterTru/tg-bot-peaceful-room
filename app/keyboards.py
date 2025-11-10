@@ -2,6 +2,10 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 def get_main_menu(is_vip=False, is_diamond=False, main_link='', vip_link='', diamond_link=''):
+    """
+    Главное меню с динамической кнопкой входа в комнату
+    """
+    # Определяем ссылку для комнаты
     if is_diamond:
         room_link = diamond_link
     elif is_vip:
@@ -9,22 +13,29 @@ def get_main_menu(is_vip=False, is_diamond=False, main_link='', vip_link='', dia
     else:
         room_link = main_link
     
+    # 🔥 ВОТ КЛЮЧЕВОЕ ОТЛИЧИЕ:
+    # Для Diamond - callback кнопка (вызывает обработчик)
+    # Для остальных - URL кнопка (сразу открывает ссылку)
     if is_diamond:
         room_button = InlineKeyboardButton(
             text='Зайти в Тихую Комнату', 
-            callback_data='go_to_room_entrance')
+            callback_data='go_to_room_entrance'  # 👈 callback для Diamond
+        )
     else:
         room_button = InlineKeyboardButton(
             text='Зайти в Тихую Комнату',
-            url=room_link)
+            url=room_link  # 👈 URL для обычных/VIP
+        )
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [room_button],
-            [InlineKeyboardButton(text='Твой кабинет', callback_data='go_to_profile_menu'),
-             InlineKeyboardButton(text='Нужна тех. помощь', callback_data='go_to_help_menu')]
+            [room_button],  # 👈 Используем динамическую кнопку
+            [
+                InlineKeyboardButton(text='Твой кабинет', callback_data='go_to_profile_menu'),
+                InlineKeyboardButton(text='Нужна тех. помощь', callback_data='go_to_help_menu')
             ]
-        )
+        ]
+    )
     
     return keyboard
 
