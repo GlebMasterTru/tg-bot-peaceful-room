@@ -97,13 +97,36 @@ async def go_to_room_entrance(callback: CallbackQuery):
         reply_markup=kb.room_entrance_menu
     )
 
-@router.callback_query(F.data == 'go_to_help_menu')
-async def go_to_help(callback: CallbackQuery):
-    await callback.answer(txt.NOTIFY_HELP)
+@router.callback_query(F.data == 'go_to_room_entrance')
+async def callback_room_entrance(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    
+    # Получаем данные пользователя
+    user = get_user(user_id)
+    if not user:
+        await callback.answer("❌ Ошибка: пользователь не найден", show_alert=True)
+        return
+    
+    is_diamond = user.get('is_diamond', False)
+    
+    # Этот обработчик должен вызываться только для Diamond
+    if not is_diamond:
+        await callback.answer("❌ Ошибка: доступ запрещён", show_alert=True)
+        return
+    
+    # Получаем ссылку для Diamond комнаты
+    _, _, diamond_link = get_links()
+    
+    text = txt.get_room_entrance_text(diamond_link)
+    menu = kb.get_diamond_room_entrance_menu(diamond_link)
+    
     await callback.message.edit_text(
-        txt.HELP_MENU_TEXT,
-        reply_markup=kb.help_menu
+        text=text,
+        reply_markup=menu,
+        parse_mode='HTML'
     )
+    
+    await callback.answer()
 
 
 @router.callback_query(F.data == 'go_to_diary_menu')

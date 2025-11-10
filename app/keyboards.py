@@ -9,17 +9,33 @@ def get_main_menu(is_vip=False, is_diamond=False, main_link='', vip_link='', dia
     else:
         room_link = main_link
     
+    if is_diamond:
+        room_button = InlineKeyboardButton(
+            text='Зайти в Тихую Комнату', 
+            callback_data='go_to_room_entrance')
+    else:
+        room_button = InlineKeyboardButton(
+            text='Зайти в Тихую Комнату',
+            url=room_link)
+    
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text='Зайти в Тихую Комнату', callback_data='go_to_room_entrance')],
-            [
-                InlineKeyboardButton(text='Твой кабинет', callback_data='go_to_profile_menu'),
-                InlineKeyboardButton(text='Нужна тех. помощь', callback_data='go_to_help_menu')
+            [room_button],
+            [InlineKeyboardButton(text='Твой кабинет', callback_data='go_to_profile_menu'),
+             InlineKeyboardButton(text='Нужна тех. помощь', callback_data='go_to_help_menu')]
             ]
-        ]
-    )
+        )
     
     return keyboard
+
+
+def get_diamond_room_entrance_menu(diamond_link):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='Зайти в комнату', url=diamond_link)],
+            [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
+        ]
+    )
 
 
 # МЕНЮ "ТВОЙ КАБИНЕТ" (Profile Menu)
