@@ -131,6 +131,14 @@ async def go_to_diary(callback: CallbackQuery):
     )
 
 
+@router.callback_query(F.data == 'go_to_help_menu')
+async def go_to_diary(callback: CallbackQuery):
+    await callback.answer(txt.NOTIFY_HELP)
+    await callback.message.edit_text(
+        txt.HELP_MENU_TEXT,
+        reply_markup=kb.help_menu
+    )
+
 # КНОПКИ "НАЗАД" - Возврат в предыдущие меню
 
 @router.callback_query(F.data == 'back_to_main')

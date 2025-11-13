@@ -13,9 +13,6 @@ def get_main_menu(is_vip=False, is_diamond=False, main_link='', vip_link='', dia
     else:
         room_link = main_link
     
-    # 🔥 ВОТ КЛЮЧЕВОЕ ОТЛИЧИЕ:
-    # Для Diamond - callback кнопка (вызывает обработчик)
-    # Для остальных - URL кнопка (сразу открывает ссылку)
     if is_diamond:
         room_button = InlineKeyboardButton(
             text='Зайти в Тихую Комнату', 
