@@ -146,3 +146,5 @@ async def notify_subscription_expired(bot: Bot, user_id: int) -> bool:
     - Централизованная обработка ошибок
     - Легко добавлять новые типы уведомлений
 """
+
+"тест мерджа"
