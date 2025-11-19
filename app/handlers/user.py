@@ -10,7 +10,6 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 import app.keyboards as kb
 import app.texts as txt
 
-from app.states import BroadcastStates
 from app.database import (
     get_user, 
     add_user, 
@@ -23,7 +22,7 @@ from app.database import (
     get_all_users
 )
 
-ADMIN_ID = 749452956
+from app.utils.formatters import get_days_word
 
 
 router = Router()
@@ -196,7 +195,7 @@ async def check_subscription(callback: CallbackQuery):
         )
     elif sub_info['status'] == 'expiring_soon':
         # ⚠️ Подписка истекает скоро (1-3 дня)
-        days_word = _get_days_word(sub_info['days_left'])
+        days_word = get_days_word(sub_info['days_left'])
         text = f"⚠️ Внимание! Твоя подписка истекает через {sub_info['days_left']} {days_word}.\n\n"
         text += f"Последний день доступа: {sub_info['end_date']}\n\n"
         text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
@@ -217,18 +216,6 @@ async def check_subscription(callback: CallbackQuery):
         reply_markup=kb.check_subscription_menu
     )
 
-
-def _get_days_word(days):
-    """Вспомогательная функция для склонения слова 'день'"""
-    if days == 1:
-        return "день"
-    elif 2 <= days <= 4:
-        return "дня"
-    else:
-        return "дней"
-
-
-# ПРОДЛЕНИЕ ПОДПИСКИ
 
 @router.callback_query(F.data == 'renew_subscription')
 async def renew_subscription(callback: CallbackQuery):
@@ -273,256 +260,3 @@ async def verify_payment(callback: CallbackQuery):
             raise  # Пробрасываем другие ошибки
 
 
-@router.message(Command("broadcast"))
-async def cmd_broadcast(message: Message, state: FSMContext):
-    # Проверка админа
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ У тебя нет доступа к этой команде.")
-        return
-    
-    await message.answer(
-        "📝 **Создание рассылки**\n\n"
-        "Отправь текст, который нужно разослать всем пользователям.\n\n"
-        "Для отмены отправь /cancel",
-        parse_mode="Markdown"
-    )
-    
-    await state.set_state(BroadcastStates.waiting_for_text)
-
-
-@router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state is None:
-        await message.answer("❌ Нечего отменять.")
-        return
-    
-    await state.clear()
-    await message.answer("❌ Рассылка отменена.")
-
-
-@router.message(BroadcastStates.waiting_for_text)
-async def process_broadcast_text(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
-        return
-    
-    # Сохраняем ID сообщения и чата
-    await state.update_data(
-        message_id=message.message_id,
-        chat_id=message.chat.id
-    )
-    
-    # Показываем превью с кнопками
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="✅ Отправить всем", 
-                callback_data="broadcast_confirm"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="❌ Отмена", 
-                callback_data="broadcast_cancel"
-            )
-        ]
-    ])
-    
-    await message.answer(
-        f"📢 **ПРЕВЬЮ РАССЫЛКИ:**\n\n"
-        f"👆 Сообщение выше будет отправлено ВСЕМ пользователям.\n\n"
-        f"Подтверждаешь?",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
-    
-    await state.set_state(BroadcastStates.waiting_for_confirmation)
-
-
-@router.callback_query(F.data == "broadcast_cancel")
-async def callback_broadcast_cancel(callback: CallbackQuery, state: FSMContext):
-    """Отмена рассылки"""
-    if callback.from_user.id != ADMIN_ID:
-        return
-    
-    await state.clear()
-    await callback.message.edit_text("❌ Рассылка отменена.")
-    await callback.answer()
-
-
-@router.callback_query(F.data == "broadcast_confirm", BroadcastStates.waiting_for_confirmation)
-async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext):
-    """Подтверждение и запуск рассылки"""
-    if callback.from_user.id != ADMIN_ID:
-        return
-    
-    # Получаем данные из FSM
-    data = await state.get_data()
-    message_id = data.get('message_id')
-    chat_id = data.get('chat_id')
-    
-    if not message_id or not chat_id:
-        await callback.message.edit_text("❌ Ошибка: сообщение не найдено.")
-        await state.clear()
-        return
-    
-    await callback.message.edit_text("🚀 Начинаю рассылку...")
-    await callback.answer()
-    
-    # Получаем всех пользователей
-    from app.database import get_all_users
-    users = get_all_users()
-    
-    if not users:
-        await callback.message.edit_text("❌ Не найдено пользователей для рассылки.")
-        await state.clear()
-        return
-    
-    total = len(users)
-    success = 0
-    blocked = 0
-    errors = 0
-    
-    # РАССЫЛКА через copy_message
-    for i, user in enumerate(users, 1):
-        try:
-            user_id = user['user_id']
-            
-            # Копируем сообщение целиком (с фото/видео/документами)
-            await callback.bot.copy_message(
-                chat_id=user_id,
-                from_chat_id=chat_id,
-                message_id=message_id
-            )
-            success += 1
-            
-            # Обновление прогресса каждые 50 пользователей
-            if i % 50 == 0:
-                try:
-                    await callback.message.edit_text(
-                        f"🚀 **Рассылка в процессе...**\n\n"
-                        f"📊 Прогресс: {i}/{total} ({int(i/total*100)}%)\n"
-                        f"✅ Отправлено: {success}\n"
-                        f"🚫 Заблокировали: {blocked}\n"
-                        f"⚠️ Ошибки: {errors}",
-                        parse_mode="Markdown"
-                    )
-                except:
-                    pass
-            
-            # Задержка против бана, 100ms
-            await asyncio.sleep(0.10)
-            
-        except TelegramForbiddenError:
-            blocked += 1
-        except TelegramBadRequest as e:
-            errors += 1
-            print(f"⚠️ Ошибка отправки {user_id}: {e}")
-        except Exception as e:
-            errors += 1
-            print(f"❌ Неизвестная ошибка {user_id}: {e}")
-    
-    # Финальный отчёт
-    await callback.message.edit_text(
-        f"✅ **Рассылка завершена!**\n\n"
-        f"📊 **Статистика:**\n"
-        f"• Всего пользователей: {total}\n"
-        f"• ✅ Успешно: {success}\n"
-        f"• 🚫 Заблокировали бота: {blocked}\n"
-        f"• ⚠️ Ошибки: {errors}\n\n"
-        f"📈 Успешность: {int(success/total*100) if total > 0 else 0}%",
-        parse_mode="Markdown"
-    )
-    
-    await state.clear()
-
-@router.message(Command("myid"))
-async def cmd_myid(message: Message):
-    await message.answer(
-        f"👤 **Твои данные:**\n"
-        f"• ID: `{message.from_user.id}`\n"
-        f"• Username: @{message.from_user.username or 'не указан'}\n"
-        f"• Имя: {message.from_user.first_name}",
-        parse_mode="Markdown"
-    )
-
-
-
-# ============================================================================
-# ТЕСТОВЫЕ ОБРАБОТЧИКИ (можно удалить перед деплоем)
-# ============================================================================
-
-@router.message(Command('help'))
-async def get_help(message: Message):
-    """Тестовая команда /help"""
-    await message.answer('Это помощь!')
-
-
-@router.message(F.text == 'Как дела?')
-async def how_are_you(message: Message):
-    """Тестовый обработчик текста"""
-    await message.answer('Всё супер!')
-
-
-@router.message(F.photo)
-async def handle_photo(message: Message):
-    """Тестовый обработчик фото"""
-    file_id = message.photo[-1].file_id
-    await message.answer_photo(file_id, caption='Вот твое фото!')
-
-
-@router.message(F.video)
-async def handle_video(message: Message):
-    """Тестовый обработчик видео"""
-    file_id = message.video.file_id
-    await message.answer_video(file_id, caption='Вот твое видео!')
-
-
-@router.message(F.sticker)
-async def handle_sticker(message: Message):
-    """Тестовый обработчик стикеров"""
-    file_id = message.sticker.file_id
-    await message.answer_sticker(file_id)
-
-
-@router.message(or_f(Command('profile'), F.text == 'Профиль'))
-async def cmd_profile(message: Message):
-    """Тестовая команда /profile"""
-    await message.answer(txt.START_MSG.format(
-        user_id=message.from_user.id,
-        username=message.from_user.username or 'не указан',
-        first_name=message.from_user.first_name
-    ))
-
-
-# ============================================================================
-# ПРИМЕЧАНИЯ ПО ДАЛЬНЕЙШЕЙ РАЗРАБОТКЕ
-# ============================================================================
-"""
-TODO (будущие задачи):
-
-1. Фоновая задача для автоматической проверки подписок:
-   - Раз в 15 минут проверять все подписки
-   - Обновлять is_sub_active на 'False', если sub_end < текущая дата
-   - Отправлять уведомления пользователям:
-     * За 3 дня до окончания
-     * За 1 день до окончания
-     * В день окончания подписки
-
-2. HOT!!! Проверить в keyboards get_main_menu - неиспользуются room_link'и
-
-3. Обработка ошибок:
-   - Добавить try-except блоки для критических операций
-   - Логирование ошибок в файл или внешний сервис
-   - Уведомление администратора о критических сбоях
-
-4. Аналитика:
-   - Подсчет активных пользователей
-   - Статистика продлений подписок
-   - Отчеты по оплатам
-
-5. Дополнительные функции:
-   - История оплат пользователя
-   - Реферальная система
-   - Промокоды и скидки
-"""
