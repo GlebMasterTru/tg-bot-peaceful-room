@@ -195,7 +195,7 @@ async def check_subscription(callback: CallbackQuery):
         )
     elif sub_info['status'] == 'expiring_soon':
         # ⚠️ Подписка истекает скоро (1-3 дня)
-        days_word = _get_days_word(sub_info['days_left'])
+        days_word = get_days_word(sub_info['days_left'])
         text = f"⚠️ Внимание! Твоя подписка истекает через {sub_info['days_left']} {days_word}.\n\n"
         text += f"Последний день доступа: {sub_info['end_date']}\n\n"
         text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
@@ -217,9 +217,6 @@ async def check_subscription(callback: CallbackQuery):
     )
 
 
-def _get_days_word(days):
-    """Вспомогательная функция для склонения слова 'день'"""
-    if days == 1:
 @router.callback_query(F.data == 'renew_subscription')
 async def renew_subscription(callback: CallbackQuery):
     await callback.answer()
