@@ -1,8 +1,3 @@
-"""
-Обработчики для администратора
-Рассылки, статистика, управление
-"""
-
 import asyncio
 from aiogram import F, Router
 from aiogram.filters import Command
