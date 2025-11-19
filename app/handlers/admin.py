@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
@@ -37,9 +37,28 @@ async def cmd_cancel(message: Message, state: FSMContext):
     if current_state is None:
         await message.answer("❌ Нечего отменять.")
         return
-    
+
     await state.clear()
     await message.answer("❌ Рассылка отменена.")
+
+
+@router.message(Command("myid"))
+async def cmd_myid(message: Message):
+    """Показать информацию о пользователе (для отладки)"""
+    user_id = message.from_user.id
+    username = message.from_user.username or "Не указан"
+    first_name = message.from_user.first_name or ""
+    last_name = message.from_user.last_name or ""
+    full_name = f"{first_name} {last_name}".strip() or "Не указано"
+
+    text = (
+        f"👤 **Информация о пользователе:**\n\n"
+        f"🆔 ID: `{user_id}`\n"
+        f"📝 Username: @{username}\n"
+        f"🏷 Имя: {full_name}"
+    )
+
+    await message.answer(text, parse_mode="Markdown")
 
 
 @router.message(BroadcastStates.waiting_for_text)
