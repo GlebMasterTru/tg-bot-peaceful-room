@@ -18,12 +18,34 @@
 ```
 tg-bot-peaceful-room/
 ├── app/
-│   ├── handlers.py          # Message and callback handlers (commands, menus, navigation)
-│   ├── database.py          # Google Sheets integration, user/subscription management
-│   ├── keyboards.py         # Inline keyboard layouts
+│   ├── config.py            # Centralized configuration (URLs, intervals, IDs)
 │   ├── texts.py             # All user-facing text messages
 │   ├── states.py            # FSM state definitions
-│   └── background_tasks.py  # Scheduled tasks (payment checks, user sync)
+│   ├── background_tasks.py  # Scheduled tasks (payment checks, user sync)
+│   ├── database/            # Database layer (Google Sheets)
+│   │   ├── __init__.py      # Exports all database functions
+│   │   ├── connection.py    # Google Sheets client initialization
+│   │   ├── models.py        # Data models (User, Subscription, Payment, RoomLinks)
+│   │   ├── users.py         # User CRUD operations and privileges
+│   │   └── payments.py      # Payment processing and subscription sync
+│   ├── handlers/            # Message and callback handlers
+│   │   ├── __init__.py      # Router combining user and admin handlers
+│   │   ├── user.py          # User commands and menu navigation
+│   │   └── admin.py         # Admin commands (broadcast, stats)
+│   ├── keyboards/           # Inline keyboard layouts
+│   │   ├── __init__.py      # Exports all keyboards
+│   │   ├── user.py          # User keyboards (menus, navigation)
+│   │   └── admin.py         # Admin keyboards (broadcast confirmation)
+│   ├── services/            # Business logic layer
+│   │   ├── __init__.py      # Exports all services
+│   │   ├── subscription.py  # Subscription checking and expiration
+│   │   └── notifications.py # User notifications (payments, expiration)
+│   ├── filters/             # Custom aiogram filters
+│   │   ├── __init__.py      # Exports all filters
+│   │   └── is_admin.py      # Admin filter
+│   └── utils/               # Utility functions
+│       ├── __init__.py      # Exports all utilities
+│       └── formatters.py    # Date formatting, text utilities
 ├── run.py                   # Application entry point
 ├── requirements.txt         # Python dependencies
 ├── .env                     # Environment variables (gitignored)
@@ -100,7 +122,7 @@ The bot has three user access levels:
 
 ### Admin Features
 
-**Admin ID**: Hardcoded as `749452956` in `handlers.py:26`
+**Admin ID**: Defined in `app/config.py` as `ADMIN_ID = 749452956`
 
 **Commands**:
 - `/broadcast` - Start broadcast to all users (supports text, photos, videos, files)
@@ -121,8 +143,8 @@ The bot has three user access levels:
 **Scheduler**: APScheduler with AsyncIOScheduler
 
 **Task 1: Payment Checking** (every 30 seconds)
-- Function: `check_payments_task()` in `background_tasks.py:9`
-- Calls: `process_all_pending_payments()` in `database.py:520`
+- Function: `check_payments_task()` in `app/background_tasks.py`
+- Calls: `process_all_pending_payments()` in `app/database/payments.py`
 - Actions:
   1. Fetches unprocessed records from Tilda sheet
   2. Groups by username
@@ -170,16 +192,19 @@ except TelegramBadRequest as e:
 - Current states: `BroadcastStates` (waiting_for_text, waiting_for_confirmation)
 
 ### Router Pattern
-- Single router: `router = Router()` in `handlers.py:29`
-- Registered in dispatcher: `dp.include_router(router)` in `run.py:28`
+- Main router: `router = Router()` in `app/handlers/__init__.py`
+- Sub-routers: `app/handlers/user.py` and `app/handlers/admin.py` each have their own router
+- Main router includes sub-routers: `router.include_router(user.router)` and `router.include_router(admin.router)`
+- Registered in dispatcher: `dp.include_router(router)` in `run.py`
 - Decorators:
   - `@router.message(...)` - Message handlers
   - `@router.callback_query(...)` - Callback query handlers
 
 ### Keyboard Creation
-- Static keyboards: Defined in `keyboards.py` as constants
+- Static keyboards: Defined in `app/keyboards/user.py` and `app/keyboards/admin.py`
 - Dynamic keyboards: Functions like `get_main_menu()` with parameters
 - Pattern: Use `callback_data` for navigation, `url` for external links
+- Import: `from app.keyboards import get_main_menu, profile_menu, etc.`
 
 ### Text Management
 - All texts in `texts.py`
@@ -198,7 +223,7 @@ NEW_MENU_TEXT = '''Your menu text here...'''
 NOTIFY_NEW_MENU = 'Short notification'
 ```
 
-2. **Add keyboard** in `app/keyboards.py`:
+2. **Add keyboard** in `app/keyboards/user.py` (or `admin.py` for admin):
 ```python
 new_menu = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -208,8 +233,21 @@ new_menu = InlineKeyboardMarkup(
 )
 ```
 
-3. **Add handler** in `app/handlers.py`:
+3. **Export keyboard** in `app/keyboards/__init__.py`:
 ```python
+from app.keyboards.user import new_menu
+
+__all__ = [
+    # ... existing exports
+    'new_menu',
+]
+```
+
+4. **Add handler** in `app/handlers/user.py` (or `admin.py` for admin):
+```python
+import app.keyboards as kb
+import app.texts as txt
+
 @router.callback_query(F.data == 'go_to_new_menu')
 async def go_to_new_menu(callback: CallbackQuery):
     await callback.answer(txt.NOTIFY_NEW_MENU)
@@ -222,7 +260,8 @@ async def go_to_new_menu(callback: CallbackQuery):
 ### Adding a New Database Field
 
 1. **Add column** to Google Sheets "users" sheet manually
-2. **Update functions** in `database.py`:
+2. **Update model** in `app/database/models.py` (add field to `User` dataclass)
+3. **Update functions** in `app/database/users.py`:
    - `add_user()` - If field needed on creation
    - `update_user_batch()` - Auto-handles new fields
    - `get_user()` - Auto-returns all fields as dict
@@ -251,17 +290,18 @@ scheduler.add_job(
 
 ### Adding Admin Commands
 
-1. **Add handler** in `app/handlers.py`:
+1. **Add handler** in `app/handlers/admin.py`:
 ```python
-@router.message(Command("new_command"))
-async def cmd_new_command(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ Access denied")
-        return
+from aiogram.filters import Command
+from app.filters import IsAdmin
 
+@router.message(Command("new_command"), IsAdmin())
+async def cmd_new_command(message: Message):
     # Admin-only logic
     await message.answer("✅ Command executed")
 ```
+
+Note: Use the `IsAdmin()` filter instead of manually checking user ID. The filter is defined in `app/filters/is_admin.py` and uses `ADMIN_ID` from `app/config.py`.
 
 ## Environment Variables
 
@@ -310,30 +350,37 @@ python run.py
 
 ## Known Issues & TODO
 
-### From Code Comments (handlers.py:502-528)
+### Architecture Improvements
+
+✅ **Completed**:
+- Modular architecture with separated concerns
+- Database layer with models and dataclasses
+- Service layer for business logic
+- Filter pattern for admin checks
+- Centralized configuration
 
 **TODO**:
-1. ~~Background task for subscription expiration~~ (Currently no auto-expiration)
-   - Check subscriptions every 15 minutes
-   - Set `is_sub_active=False` when `sub_end < now`
+1. Subscription expiration system:
+   - Background task to check expiring subscriptions (service exists in `app/services/subscription.py`)
+   - Auto-deactivate expired subscriptions
    - Send notifications: 3 days before, 1 day before, on expiration day
+   - Implementation: Add task to `app/background_tasks.py` using `check_expiring_soon_subscriptions()`
 
-2. **HOT!** Unused parameters in `get_main_menu()` - `room_link` variables passed but room links not used (line 512)
-
-3. Add comprehensive error logging:
-   - File-based logging or external service
+2. Comprehensive error logging:
+   - File-based logging or external service (e.g., Sentry)
    - Admin notifications on critical failures
    - Structured error tracking
 
-4. Analytics features:
-   - Active user count
+3. Analytics features:
+   - Active user count dashboard
    - Subscription renewal statistics
-   - Payment reports
+   - Payment reports and trends
 
-5. Additional features:
+4. Additional features:
    - Payment history per user
    - Referral system
    - Promo codes and discounts
+   - User feedback collection
 
 ### Current Limitations
 - **No persistent FSM**: Uses MemoryStorage (state lost on bot restart)
@@ -417,23 +464,53 @@ logging.basicConfig(
 
 ## Quick Reference
 
-### Key Functions (database.py)
-- `get_user(user_id)` - Fetch user record as dict
+### Key Modules
+
+**Database** (`app.database`):
+- `get_user(user_id)` - Fetch user record (`app/database/users.py`)
 - `add_user(user_id, username, first_name)` - Create new user
 - `get_user_privileges(user_id)` - Returns (is_vip, is_diamond)
-- `get_links()` - Returns (main_link, vip_link, diamond_link)
-- `sync_user_subscription(user_id, username)` - Manual payment sync
-- `get_subscription_status(user_id)` - Returns detailed sub info
+- `get_links()` - Returns RoomLinks model with room URLs (`app/database/connection.py`)
+- `sync_user_subscription(user_id, username)` - Manual payment sync (`app/database/payments.py`)
+- `get_subscription_status(user_id)` - Returns Subscription model
 - `update_user_batch(user_id, update_dict)` - Batch update multiple fields
 - `get_all_users()` - Get all users for broadcasting
+- `process_all_pending_payments()` - Process Tilda payments (`app/database/payments.py`)
 
-### Key Handlers (handlers.py)
-- `cmd_start()` - /start command, main menu
-- `go_to_profile()` - Profile menu navigation
-- `check_subscription()` - Display subscription status
-- `verify_payment()` - Manual payment verification
-- `cmd_broadcast()` - Admin broadcast initiation
-- `callback_broadcast_confirm()` - Execute broadcast
+**Services** (`app.services`):
+- `notify_payment_processed(bot, user_id)` - Send payment success notification (`app/services/notifications.py`)
+- `check_expiring_soon_subscriptions()` - Find expiring subscriptions (`app/services/subscription.py`)
+- `get_subscription_info_text(user_id)` - Format subscription status text
+
+**Handlers** (`app.handlers`):
+- User handlers in `app/handlers/user.py`:
+  - `cmd_start()` - /start command, main menu
+  - `go_to_profile()` - Profile menu navigation
+  - `check_subscription()` - Display subscription status
+  - `verify_payment()` - Manual payment verification
+- Admin handlers in `app/handlers/admin.py`:
+  - `cmd_broadcast()` - Admin broadcast initiation
+  - `callback_broadcast_confirm()` - Execute broadcast
+  - `cmd_myid()` - Get user info
+
+**Keyboards** (`app.keyboards`):
+- `get_main_menu(is_vip, is_diamond, main_link, vip_link, diamond_link)` - Dynamic main menu
+- `profile_menu` - User profile menu
+- `broadcast_confirmation_menu` - Admin broadcast confirmation
+
+**Models** (`app.database.models`):
+- `User` - User dataclass with all fields
+- `Subscription` - Subscription info
+- `Payment` - Payment record from Tilda
+- `RoomLinks` - Room URLs
+
+**Configuration** (`app.config`):
+- `ADMIN_ID` - Admin user ID
+- `PAYMENT_CHECK_INTERVAL_SECONDS` - Payment check frequency (30s)
+- `USER_SYNC_INTERVAL_MINUTES` - User sync frequency (15min)
+- `SUBSCRIPTION_RENEWAL_URL` - Tilda payment page
+- `DIARY_URL` - Diary link
+- `SUPPORT_URL` - Support link
 
 ### Callback Data Patterns
 - `go_to_*` - Navigation to menus
@@ -444,7 +521,21 @@ logging.basicConfig(
 
 ---
 
-**Last Updated**: 2025-11-14
-**Bot Version**: Based on commit `ba2280e`
+**Last Updated**: 2025-11-19
+**Bot Version**: Modular architecture - commit `b7e3f49`
+**Architecture**: Refactored to modular structure (database/, handlers/, keyboards/, services/, filters/, utils/)
 **aiogram Version**: 3.22.0
 **Maintained by**: Development team with AI assistance
+
+## Architecture Changelog
+
+**2025-11-19** - Major refactoring to modular architecture:
+- Separated monolithic files into organized modules
+- Added database layer with models (User, Subscription, Payment, RoomLinks)
+- Created service layer for business logic (subscription, notifications)
+- Implemented filter pattern (IsAdmin)
+- Centralized configuration in config.py
+- Split handlers into user.py and admin.py
+- Split keyboards into user.py and admin.py
+- Added utility functions in utils/formatters.py
+- Improved code organization and maintainability
