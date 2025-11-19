@@ -14,33 +14,6 @@ from app.config import ADMIN_ID
 
 router = Router()
 
-@router.message(Command("broadcast"))
-async def cmd_broadcast(message: Message, state: FSMContext):
-    # Проверка админа
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ У тебя нет доступа к этой команде.")
-        return
-    
-    await message.answer(
-        "📝 **Создание рассылки**\n\n"
-        "Отправь текст, который нужно разослать всем пользователям.\n\n"
-        "Для отмены отправь /cancel",
-        parse_mode="Markdown"
-    )
-    
-    await state.set_state(BroadcastStates.waiting_for_text)
-
-
-@router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state is None:
-        await message.answer("❌ Нечего отменять.")
-        return
-
-    await state.clear()
-    await message.answer("❌ Рассылка отменена.")
-
 
 @router.message(Command("myid"))
 async def cmd_myid(message: Message):
@@ -61,39 +34,78 @@ async def cmd_myid(message: Message):
     await message.answer(text, parse_mode="Markdown")
 
 
+@router.message(Command("broadcast"))
+async def cmd_broadcast(message: Message, state: FSMContext):
+    # Проверка админа
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ У тебя нет доступа к этой команде.")
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+                text="❌ Отмена", 
+                callback_data="broadcast_cancel")]
+        ]
+    )
+    
+    await message.answer(
+        "📝 Создание рассылки\n\n"
+        "Отправь текст, который нужно разослать всем пользователям.\n\n"
+        "⚠️ <b>***Важно!:***</b>\n"
+        "• Только ОДНО вложение в сообщении!\n"
+        "• Несколько файлов сразу не поддерживаются (например документ+видео+фото+документ)\n\n"
+        "Поддерживаемые форматы:\n"
+        "• Текст\n"
+        "• Текст + [фото / видео / документ / гифка / аудио / файл, и т.д.] <b>- НО НЕ БОЛЬШЕ ОДНОГО ФАЙЛА</b>\n"
+        "• Видео/голосовое сообщение\n\n"
+        "Для отмены нажми кнопку или отправь /cancel",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+    
+    await state.set_state(BroadcastStates.waiting_for_text)
+
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("❌ Нечего отменять.")
+        return
+
+    await state.clear()
+    await message.answer("❌ Рассылка отменена.")
+
+
 @router.message(BroadcastStates.waiting_for_text)
 async def process_broadcast_text(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
     
-    # Сохраняем ID сообщения и чата
     await state.update_data(
         message_id=message.message_id,
         chat_id=message.chat.id
     )
     
-    # Показываем превью с кнопками
+    await message.copy_to(chat_id=message.chat.id)
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
+        [InlineKeyboardButton(
                 text="✅ Отправить всем", 
-                callback_data="broadcast_confirm"
-            )
-        ],
-        [
-            InlineKeyboardButton(
+                callback_data="broadcast_confirm")],
+        [InlineKeyboardButton(
                 text="❌ Отмена", 
-                callback_data="broadcast_cancel"
-            )
+                callback_data="broadcast_cancel")]
         ]
-    ])
+    )
     
     await message.answer(
-        f"📢 **ПРЕВЬЮ РАССЫЛКИ:**\n\n"
-        f"👆 Сообщение выше будет отправлено ВСЕМ пользователям.\n\n"
-        f"Подтверждаешь?",
+        "📢 <b>ПРЕВЬЮ РАССЫЛКИ</b>\n\n"
+        "👆 Сообщение выше будет отправлено ВСЕМ пользователям "
+        "(со всеми фото, видео, текстом и форматированием).\n\n"
+        "Подтверждаешь?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
     
     await state.set_state(BroadcastStates.waiting_for_confirmation)
@@ -170,17 +182,21 @@ async def callback_broadcast_confirm(callback: CallbackQuery, state: FSMContext)
                 except:
                     pass
             
-            # Задержка против бана, 100ms
+            # Задержка против бана
             await asyncio.sleep(0.10)
             
         except TelegramForbiddenError:
             blocked += 1
+            print(f"🚫 Пользователь {user_id} заблокировал бота")
         except TelegramBadRequest as e:
             errors += 1
-            print(f"⚠️ Ошибка отправки {user_id}: {e}")
+            # 👇 ДОБАВЬ ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ!
+            print(f"⚠️ BadRequest для {user_id}: {e}")
+            print(f"   from_chat_id={chat_id}, message_id={message_id}")
         except Exception as e:
             errors += 1
-            print(f"❌ Неизвестная ошибка {user_id}: {e}")
+            # 👇 ЛОГИРУЕМ ТИП ОШИБКИ!
+            print(f"❌ Неизвестная ошибка {user_id}: {type(e).__name__}: {e}")
     
     # Финальный отчёт
     await callback.message.edit_text(

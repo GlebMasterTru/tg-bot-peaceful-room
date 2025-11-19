@@ -1,6 +1,5 @@
 """
 Клавиатуры для администратора
-Inline-клавиатуры для админских команд и функций
 """
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
