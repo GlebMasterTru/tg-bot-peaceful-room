@@ -1,4 +1,6 @@
 .env
+.env.prod
+.env.test
 service_account.json
 credentials.json
 .venv/
