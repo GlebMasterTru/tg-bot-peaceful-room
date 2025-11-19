@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from app.handlers import router
 from app.background_tasks import setup_scheduler
 
+
 async def main():
     load_dotenv()
     bot = Bot(
