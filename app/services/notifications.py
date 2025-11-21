@@ -4,10 +4,30 @@
 """
 
 from aiogram import Bot
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List
 
 import app.texts as txt
 from app.utils.formatters import get_days_word
+
+
+# ============================================================================
+# КЛАВИАТУРЫ ДЛЯ УВЕДОМЛЕНИЙ
+# ============================================================================
+
+def get_expiring_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура для уведомлений об истекающей подписке (3 дня / 1 день)"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
+        [InlineKeyboardButton(text='Зайти в Тихую Комнату', callback_data='go_to_room_entrance')]
+    ])
+
+
+def get_expired_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура для уведомления об истекшей подписке"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')]
+    ])
 
 
 # ============================================================================
@@ -84,10 +104,13 @@ async def notify_subscription_expiring(bot: Bot, user_id: int, days_left: int) -
         days_word = get_days_word(days_left)
 
         text = f"⚠️ Внимание! Твоя подписка истекает через {days_left} {days_word}.\n\n"
-        text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате.\n\n"
-        text += "Продлить можно в разделе /start → Твой кабинет → Продлить доступ"
+        text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
 
-        await bot.send_message(chat_id=user_id, text=text)
+        await bot.send_message(
+            chat_id=user_id,
+            text=text,
+            reply_markup=get_expiring_keyboard()
+        )
         print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id}")
         return True
     except Exception as e:
@@ -108,10 +131,13 @@ async def notify_subscription_expired(bot: Bot, user_id: int) -> bool:
     """
     try:
         text = "❌ Твоя подписка истекла.\n\n"
-        text += "Доступ к Тихой Комнате приостановлен.\n\n"
-        text += "Чтобы продлить подписку, перейди в /start → Твой кабинет → Продлить доступ"
+        text += "Доступ к Тихой Комнате приостановлен."
 
-        await bot.send_message(chat_id=user_id, text=text)
+        await bot.send_message(
+            chat_id=user_id,
+            text=text,
+            reply_markup=get_expired_keyboard()
+        )
         print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id}")
         return True
     except Exception as e:
