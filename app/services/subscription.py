@@ -113,6 +113,9 @@ async def check_expiring_soon_subscriptions() -> dict:
 
             sub_info = get_subscription_status(user_id)
 
+            # DEBUG: показываем что получили для каждого пользователя
+            print(f"  👤 User {user_id}: status={sub_info['status']}, days_left={sub_info.get('days_left')}, end={sub_info.get('end_date_raw')}")
+
             # Проверяем только активные подписки
             if sub_info['status'] != 'active' and sub_info['status'] != 'expiring_soon':
                 continue
