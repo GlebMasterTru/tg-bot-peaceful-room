@@ -15,7 +15,7 @@ from app.utils.formatters import get_days_word
 # КЛАВИАТУРЫ ДЛЯ УВЕДОМЛЕНИЙ
 # ============================================================================
 
-def get_expiring_keyboard() -> InlineKeyboardMarkup:
+def get_expiring_keyboard():
     """Клавиатура для уведомлений об истекающей подписке (3 дня / 1 день)"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
@@ -23,7 +23,7 @@ def get_expiring_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def get_expired_keyboard() -> InlineKeyboardMarkup:
+def get_expired_keyboard():
     """Клавиатура для уведомления об истекшей подписке"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')]

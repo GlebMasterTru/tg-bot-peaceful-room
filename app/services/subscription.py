@@ -129,12 +129,12 @@ async def check_expiring_soon_subscriptions() -> dict:
             days_left = sub_info.get('days_left', 0)
 
             # За 3 дня до истечения
-            if days_left == 3:
+            if days_left <= 3:
                 expiring_3_days.append(user_id)
                 print(f"⚠️ Подписка истекает через 3 дня: {user_id}")
 
             # За 1 день до истечения
-            elif days_left == 1:
+            elif days_left <= 1:
                 expiring_1_day.append(user_id)
                 print(f"⚠️ Подписка истекает через 1 день: {user_id}")
 
