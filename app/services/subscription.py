@@ -12,6 +12,7 @@ from app.database import (
     update_user_batch,
     get_subscription_status
 )
+from app.database.connection import users_worksheet
 
 
 # ============================================================================
@@ -21,10 +22,6 @@ from app.database import (
 async def check_and_expire_subscriptions() -> List[int]:
     """
     Проверить все активные подписки и деактивировать истекшие
-
-    Эта функция вызывается фоновой задачей каждые 15 минут.
-    Проверяет всех пользователей с активной подпиской и деактивирует
-    те, у которых sub_end < текущая дата.
 
     Returns:
         list: Список user_id пользователей с деактивированными подписками
@@ -41,17 +38,14 @@ async def check_and_expire_subscriptions() -> List[int]:
             if not user_id:
                 continue
 
-            # Получаем полные данные пользователя
             user = get_user(user_id)
             if not user:
                 continue
 
-            # Проверяем только пользователей с активной подпиской
             is_sub_active = user.get('is_sub_active', 'False')
             if is_sub_active != 'True':
                 continue
 
-            # Проверяем дату окончания
             sub_end_str = user.get('sub_end', '')
             if not sub_end_str:
                 continue
@@ -59,9 +53,7 @@ async def check_and_expire_subscriptions() -> List[int]:
             try:
                 sub_end = datetime.strptime(sub_end_str, '%Y-%m-%d %H:%M:%S')
 
-                # Если подписка истекла
                 if sub_end < current_time:
-                    # Деактивируем подписку
                     update_data = {
                         'is_sub_active': 'False',
                         'is_diamond': 'False',
@@ -90,30 +82,27 @@ async def check_and_expire_subscriptions() -> List[int]:
 
 
 # ============================================================================
-# ПРОВЕРКА СКОРО ИСТЕКАЮЩИХ ПОДПИСОК
+# ПРОВЕРКА СКОРО ИСТЕКАЮЩИХ ПОДПИСОК (до истечения)
 # ============================================================================
 
 async def check_expiring_soon_subscriptions() -> dict:
     """
     Проверить подписки, которые скоро истекут
 
-    Возвращает словарь с пользователями, которым нужно отправить уведомления:
-    - За 3 дня до истечения
+    Возвращает:
     - За 1 день до истечения
     - В последний день (0 дней)
 
     Returns:
         dict: {
-            'expiring_3_days': [user_id1, user_id2, ...],
-            'expiring_1_day': [user_id3, user_id4, ...],
-            'expiring_today': [user_id5, user_id6, ...]
+            'expiring_1_day': [user_id1, user_id2, ...],
+            'expiring_today': [user_id3, user_id4, ...]
         }
     """
     print("🔍 Проверка скоро истекающих подписок...")
 
     try:
         all_users = get_all_users()
-        expiring_3_days = []
         expiring_1_day = []
         expiring_today = []
 
@@ -122,7 +111,6 @@ async def check_expiring_soon_subscriptions() -> dict:
             if not user_id:
                 continue
 
-            # Получаем статус подписки
             sub_info = get_subscription_status(user_id)
 
             # Проверяем только активные подписки
@@ -131,13 +119,8 @@ async def check_expiring_soon_subscriptions() -> dict:
 
             days_left = sub_info.get('days_left', 0)
 
-            # За 3 дня до истечения
-            if days_left == 3:
-                expiring_3_days.append(user_id)
-                print(f"⚠️ Подписка истекает через 3 дня: {user_id}")
-
             # За 1 день до истечения
-            elif days_left == 1:
+            if days_left == 1:
                 expiring_1_day.append(user_id)
                 print(f"⚠️ Подписка истекает через 1 день: {user_id}")
 
@@ -146,10 +129,9 @@ async def check_expiring_soon_subscriptions() -> dict:
                 expiring_today.append(user_id)
                 print(f"⚠️ Подписка истекает сегодня: {user_id}")
 
-        print(f"📊 Истекают через 3 дня: {len(expiring_3_days)}, через 1 день: {len(expiring_1_day)}, сегодня: {len(expiring_today)}")
+        print(f"📊 Истекают через 1 день: {len(expiring_1_day)}, сегодня: {len(expiring_today)}")
 
         return {
-            'expiring_3_days': expiring_3_days,
             'expiring_1_day': expiring_1_day,
             'expiring_today': expiring_today
         }
@@ -157,9 +139,86 @@ async def check_expiring_soon_subscriptions() -> dict:
     except Exception as e:
         print(f"❌ Ошибка проверки истекающих подписок: {e}")
         return {
-            'expiring_3_days': [],
             'expiring_1_day': [],
             'expiring_today': []
+        }
+
+
+# ============================================================================
+# ПРОВЕРКА ИСТЁКШИХ ПОДПИСОК (после истечения)
+# ============================================================================
+
+async def check_expired_subscriptions_for_reminders() -> dict:
+    """
+    Проверить истёкшие подписки для напоминаний
+
+    Возвращает пользователей, у которых подписка истекла:
+    - Ровно 3 дня назад
+    - Ровно 7 дней назад
+
+    Returns:
+        dict: {
+            'expired_3_days': [user_id1, user_id2, ...],
+            'expired_7_days': [user_id3, user_id4, ...]
+        }
+    """
+    print("🔍 Проверка истёкших подписок для напоминаний...")
+
+    try:
+        # Получаем все записи напрямую из таблицы
+        all_records = users_worksheet.get_all_records()
+        current_date = datetime.now().date()
+
+        expired_3_days = []
+        expired_7_days = []
+
+        for user in all_records:
+            user_id = user.get('user_id')
+            if not user_id:
+                continue
+
+            # Проверяем только НЕактивные подписки (уже истекли)
+            is_sub_active = user.get('is_sub_active', 'False')
+            if is_sub_active == 'True':
+                continue
+
+            sub_end_str = user.get('sub_end', '')
+            if not sub_end_str:
+                continue
+
+            try:
+                sub_end = datetime.strptime(sub_end_str, '%Y-%m-%d %H:%M:%S')
+                sub_end_date = sub_end.date()
+
+                # Сколько дней прошло с момента истечения
+                days_since_expired = (current_date - sub_end_date).days
+
+                # Ровно 3 дня назад
+                if days_since_expired == 3:
+                    expired_3_days.append(int(user_id))
+                    print(f"📨 3 дня после истечения: {user_id}")
+
+                # Ровно 7 дней назад
+                elif days_since_expired == 7:
+                    expired_7_days.append(int(user_id))
+                    print(f"📨 7 дней после истечения: {user_id}")
+
+            except ValueError as e:
+                print(f"⚠️ Ошибка парсинга даты {sub_end_str} для {user_id}: {e}")
+                continue
+
+        print(f"📊 3 дня после: {len(expired_3_days)}, 7 дней после: {len(expired_7_days)}")
+
+        return {
+            'expired_3_days': expired_3_days,
+            'expired_7_days': expired_7_days
+        }
+
+    except Exception as e:
+        print(f"❌ Ошибка проверки истёкших подписок: {e}")
+        return {
+            'expired_3_days': [],
+            'expired_7_days': []
         }
 
 
@@ -170,12 +229,6 @@ async def check_expiring_soon_subscriptions() -> dict:
 def get_subscription_info_text(user_id: int) -> str:
     """
     Получить текстовое описание статуса подписки для пользователя
-
-    Args:
-        user_id: Telegram ID пользователя
-
-    Returns:
-        str: Форматированный текст статуса подписки
     """
     sub_info = get_subscription_status(user_id)
     status = sub_info['status']
@@ -193,52 +246,3 @@ def get_subscription_info_text(user_id: int) -> str:
         return "ℹ️ Активной подписки нет"
     else:
         return "⚠️ Не удалось проверить статус подписки"
-
-
-# ============================================================================
-# ПРИМЕЧАНИЯ ПО ИСПОЛЬЗОВАНИЮ
-# ============================================================================
-
-"""
-Как использовать:
-
-В background_tasks.py:
-    from app.services.subscription import (
-        check_and_expire_subscriptions,
-        check_expiring_soon_subscriptions
-    )
-    from app.services.notifications import (
-        notify_subscription_expired,
-        notify_subscription_expiring
-    )
-
-    async def subscription_check_task(bot):
-        # Проверяем истекшие
-        expired_users = await check_and_expire_subscriptions()
-        for user_id in expired_users:
-            await notify_subscription_expired(bot, user_id)
-
-        # Проверяем скоро истекающие
-        expiring = await check_expiring_soon_subscriptions()
-
-        for user_id in expiring['expiring_3_days']:
-            await notify_subscription_expiring(bot, user_id, 3)
-
-        for user_id in expiring['expiring_1_day']:
-            await notify_subscription_expiring(bot, user_id, 1)
-
-В handlers:
-    from app.services.subscription import get_subscription_info_text
-
-    @router.callback_query(F.data == 'check_subscription')
-    async def check_subscription(callback: CallbackQuery):
-        user_id = callback.from_user.id
-        text = get_subscription_info_text(user_id)
-        await callback.message.edit_text(text, ...)
-
-Преимущества:
-    - Бизнес-логика отделена от handlers
-    - Легко тестировать логику подписок
-    - Централизованная обработка дат и статусов
-    - Легко добавлять новые проверки
-"""
