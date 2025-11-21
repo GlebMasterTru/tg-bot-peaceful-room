@@ -15,65 +15,7 @@ from app.database.users import (
     add_user_to_diamond_list,
     users_worksheet
 )
-
-
-# ============================================================================
-# УТИЛИТЫ ДЛЯ РАБОТЫ С USERNAME
-# ============================================================================
-
-def clean_telegram_username(raw_username: str) -> Optional[str]:
-    """
-    Очистить и нормализовать username из Tilda
-
-    Args:
-        raw_username: Username как введён в Tilda
-
-    Returns:
-        str: Очищенный username (без @, t.me/, etc.) или None
-
-    Examples:
-        '@username' -> 'username'
-        'https://t.me/username' -> 'username'
-        't.me/username?start=123' -> 'username'
-    """
-    if not raw_username:
-        return None
-
-    username = str(raw_username).strip().lower()
-
-    # Убираем @
-    if username.startswith('@'):
-        username = username[1:]
-
-    # Убираем t.me/
-    if 't.me/' in username:
-        username = username.split('t.me/')[-1]
-
-    if 'https://t.me/' in username:
-        username = username.split('https://t.me/')[-1]
-
-    # Убираем query параметры (например, ?start=123)
-    username = username.split('?')[0].rstrip('/')
-
-    return username
-
-
-def format_date_for_user(date_str: str) -> str:
-    """
-    Преобразовать дату из формата БД в человекочитаемый
-
-    Args:
-        date_str: Дата в формате 'YYYY-MM-DD HH:MM:SS'
-
-    Returns:
-        str: Дата в формате 'DD.MM.YYYY'
-    """
-    try:
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-        return date_obj.strftime('%d.%m.%Y')
-    except Exception as e:
-        print(f"⚠️ Ошибка форматирования даты {date_str}: {e}")
-        return date_str
+from app.utils.formatters import clean_telegram_username, format_date_for_user
 
 
 # ============================================================================
@@ -133,11 +75,12 @@ def get_subscription_status(user_id: int) -> dict:
             try:
                 end_date_obj = datetime.strptime(sub_end, '%Y-%m-%d %H:%M:%S')
                 current_date = datetime.now()
-                days_left = (end_date_obj - current_date).days
+                # Сравниваем только даты (без времени) для корректного подсчета дней
+                days_left = (end_date_obj.date() - current_date.date()).days
 
                 if days_left > 3:
                     status = 'active'
-                elif 1 <= days_left <= 3:
+                elif 0 <= days_left <= 3:
                     status = 'expiring_soon'
                 else:
                     status = 'expired'
@@ -147,7 +90,7 @@ def get_subscription_status(user_id: int) -> dict:
                     'is_sub_active': True,
                     'end_date': format_date_for_user(sub_end),
                     'end_date_raw': sub_end,
-                    'days_left': days_left if days_left > 0 else 0
+                    'days_left': days_left if days_left >= 0 else 0
                 }
 
             except ValueError as e:

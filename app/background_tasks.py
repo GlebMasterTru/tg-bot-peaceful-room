@@ -15,11 +15,14 @@ from app.database import (
 from app.services import notify_payment_processed
 from app.services.subscription import (
     check_and_expire_subscriptions,
-    check_expiring_soon_subscriptions
+    check_expiring_soon_subscriptions,
+    check_expired_subscriptions_for_reminders
 )
 from app.services.notifications import (
-    notify_subscription_expired,
-    notify_subscription_expiring
+    notify_expiring_1_day,
+    notify_expiring_today,
+    notify_expired_3_days,
+    notify_expired_7_days
 )
 from app.config import (
     PAYMENT_CHECK_INTERVAL_SECONDS,
@@ -61,29 +64,39 @@ async def check_subscriptions_task(bot):
     Фоновая задача проверки подписок
     Запускается раз в день в 12:00 + сразу при старте бота
 
-    1. Деактивирует истекшие подписки
-    2. Отправляет уведомления за 3 дня и 1 день до истечения
-    3. Отправляет уведомления об истечении
+    Уведомления:
+    - За 1 день до истечения
+    - В день истечения (последний день)
+    - Через 3 дня после истечения
+    - Через 7 дней после истечения (последнее)
     """
     print("📅 Проверка подписок...")
 
-    # 1. Проверяем и деактивируем истекшие подписки
-    expired_users = await check_and_expire_subscriptions()
-
-    # Отправляем уведомления об истечении
-    for user_id in expired_users:
-        await notify_subscription_expired(bot, user_id)
-
-    # 2. Проверяем скоро истекающие подписки
+    # 1. СНАЧАЛА проверяем и отправляем уведомления (пока подписки ещё активны!)
     expiring = await check_expiring_soon_subscriptions()
-
-    # Уведомления за 3 дня
-    for user_id in expiring['expiring_3_days']:
-        await notify_subscription_expiring(bot, user_id, 3)
 
     # Уведомления за 1 день
     for user_id in expiring['expiring_1_day']:
-        await notify_subscription_expiring(bot, user_id, 1)
+        await notify_expiring_1_day(bot, user_id)
+
+    # Уведомления в последний день (сегодня)
+    for user_id in expiring['expiring_today']:
+        await notify_expiring_today(bot, user_id)
+
+    # 2. ПОТОМ деактивируем истекшие подписки
+    await check_and_expire_subscriptions()
+
+    # 3. Проверяем истёкшие подписки для напоминаний (после истечения)
+    # TODO: Раскомментировать когда владелец одобрит
+    # expired_reminders = await check_expired_subscriptions_for_reminders()
+
+    # Уведомления через 3 дня после истечения
+    # for user_id in expired_reminders['expired_3_days']:
+    #     await notify_expired_3_days(bot, user_id)
+
+    # Уведомления через 7 дней после истечения (последнее)
+    # for user_id in expired_reminders['expired_7_days']:
+    #     await notify_expired_7_days(bot, user_id)
 
     print("✅ Проверка подписок завершена!\n")
 

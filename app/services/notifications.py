@@ -8,25 +8,96 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List
 
 import app.texts as txt
-from app.utils.formatters import get_days_word
+
+
+# ============================================================================
+# ТЕКСТЫ УВЕДОМЛЕНИЙ О ПОДПИСКЕ
+# ============================================================================
+
+# За 1 день до окончания
+EXPIRING_1_DAY_TEXT = """Завтра Комната закроется —
+но ты можешь остаться.
+
+Каждый месяц здесь открывается новая Комната.
+
+Не по календарю —
+по твоему состоянию.
+
+Ты сама решаешь, какая она будет.
+
+Если чувствуешь, что тебе важно продолжить —
+я просто напомню, что вход всё ещё рядом.
+
+И ты не одна."""
+
+# В день окончания (последний день)
+EXPIRING_TODAY_TEXT = """Подписка на Комнату закончилась.
+
+Я не буду шуметь.
+
+Только оставлю рядом вход — если почувствуешь, что хочешь продолжить.
+
+У тебя уже есть свой ритм. Я не вмешиваюсь.
+
+Просто тихо напоминаю: можно остаться. Можно вернуться. Можно идти дальше."""
+
+# Через 3 дня после окончания
+EXPIRED_3_DAYS_TEXT = """Иногда мы выходим на улицу и не знаем, вернёмся ли.
+
+Иногда возвращаемся в то же место — и чувствуем его совсем иначе.
+
+Твоя Комната всё ещё здесь.
+
+Если она тебе сейчас не нужна — это тоже ответ.
+
+Но если вдруг — я оставляю касание."""
+
+# Через 7 дней после окончания
+EXPIRED_7_DAYS_TEXT = """Даже если Комната больше не зовёт — она была.
+
+И ты была в ней.
+
+Это уже случилось.
+
+Я не позову больше. Просто оставлю вход.
+
+Если откликнется — можешь нажать."""
 
 
 # ============================================================================
 # КЛАВИАТУРЫ ДЛЯ УВЕДОМЛЕНИЙ
 # ============================================================================
 
-def get_expiring_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура для уведомлений об истекающей подписке (3 дня / 1 день)"""
+def get_expiring_1_day_keyboard():
+    """Клавиатура за 1 день до окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
-        [InlineKeyboardButton(text='Зайти в Тихую Комнату', callback_data='go_to_room_entrance')]
+        [InlineKeyboardButton(text='Посмотреть новую Комнату', callback_data='go_to_room_entrance')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
-def get_expired_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура для уведомления об истекшей подписке"""
+def get_expiring_today_keyboard():
+    """Клавиатура в день окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')]
+        [InlineKeyboardButton(text='Продлить на месяц', callback_data='renew_subscription')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
+    ])
+
+
+def get_expired_3_days_keyboard():
+    """Клавиатура через 3 дня после окончания"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
+    ])
+
+
+def get_expired_7_days_keyboard():
+    """Клавиатура через 7 дней после окончания (последнее)"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Вернуться в комнату', callback_data='go_to_room_entrance')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
@@ -37,13 +108,6 @@ def get_expired_keyboard() -> InlineKeyboardMarkup:
 async def notify_payment_processed(bot: Bot, user_id: int) -> bool:
     """
     Уведомить пользователя об успешной обработке оплаты
-
-    Args:
-        bot: Экземпляр бота
-        user_id: Telegram ID пользователя
-
-    Returns:
-        bool: True если отправлено успешно
     """
     try:
         await bot.send_message(
@@ -60,14 +124,6 @@ async def notify_payment_processed(bot: Bot, user_id: int) -> bool:
 async def notify_multiple_users(bot: Bot, user_ids: List[int], text: str) -> dict:
     """
     Отправить одинаковое уведомление нескольким пользователям
-
-    Args:
-        bot: Экземпляр бота
-        user_ids: Список ID пользователей
-        text: Текст уведомления
-
-    Returns:
-        dict: Статистика отправки {success: int, failed: int}
     """
     success = 0
     failed = 0
@@ -88,89 +144,61 @@ async def notify_multiple_users(bot: Bot, user_ids: List[int], text: str) -> dic
 # УВЕДОМЛЕНИЯ О ПОДПИСКАХ
 # ============================================================================
 
-async def notify_subscription_expiring(bot: Bot, user_id: int, days_left: int) -> bool:
-    """
-    Уведомить пользователя о скором истечении подписки
-
-    Args:
-        bot: Экземпляр бота
-        user_id: Telegram ID пользователя
-        days_left: Сколько дней осталось
-
-    Returns:
-        bool: True если отправлено успешно
-    """
+async def notify_expiring_1_day(bot: Bot, user_id: int) -> bool:
+    """Уведомление за 1 день до окончания подписки"""
     try:
-        days_word = get_days_word(days_left)
-
-        text = f"⚠️ Внимание! Твоя подписка истекает через {days_left} {days_word}.\n\n"
-        text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
-
         await bot.send_message(
             chat_id=user_id,
-            text=text,
-            reply_markup=get_expiring_keyboard()
+            text=EXPIRING_1_DAY_TEXT,
+            reply_markup=get_expiring_1_day_keyboard()
         )
-        print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id}")
+        print(f"✅ Уведомление (1 день до) отправлено пользователю {user_id}")
         return True
     except Exception as e:
         print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")
         return False
 
 
-async def notify_subscription_expired(bot: Bot, user_id: int) -> bool:
-    """
-    Уведомить пользователя об истечении подписки
-
-    Args:
-        bot: Экземпляр бота
-        user_id: Telegram ID пользователя
-
-    Returns:
-        bool: True если отправлено успешно
-    """
+async def notify_expiring_today(bot: Bot, user_id: int) -> bool:
+    """Уведомление в день окончания подписки"""
     try:
-        text = "❌ Твоя подписка истекла.\n\n"
-        text += "Доступ к Тихой Комнате приостановлен."
-
         await bot.send_message(
             chat_id=user_id,
-            text=text,
-            reply_markup=get_expired_keyboard()
+            text=EXPIRING_TODAY_TEXT,
+            reply_markup=get_expiring_today_keyboard()
         )
-        print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id}")
+        print(f"✅ Уведомление (последний день) отправлено пользователю {user_id}")
         return True
     except Exception as e:
         print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")
         return False
 
 
-# ============================================================================
-# ПРИМЕЧАНИЯ ПО ИСПОЛЬЗОВАНИЮ
-# ============================================================================
+async def notify_expired_3_days(bot: Bot, user_id: int) -> bool:
+    """Уведомление через 3 дня после окончания подписки"""
+    try:
+        await bot.send_message(
+            chat_id=user_id,
+            text=EXPIRED_3_DAYS_TEXT,
+            reply_markup=get_expired_3_days_keyboard()
+        )
+        print(f"✅ Уведомление (3 дня после) отправлено пользователю {user_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")
+        return False
 
-"""
-Как использовать:
 
-В background_tasks.py:
-    from app.services.notifications import notify_payment_processed
-
-    # После обработки платежа
-    for user_id in notified_users:
-        await notify_payment_processed(bot, user_id)
-
-В handlers:
-    from app.services.notifications import notify_subscription_expiring
-
-    # При проверке подписки
-    if days_left <= 3:
-        await notify_subscription_expiring(bot, user_id, days_left)
-
-Преимущества:
-    - Весь текст уведомлений в одном месте
-    - Легко изменить формат уведомлений
-    - Централизованная обработка ошибок
-    - Легко добавлять новые типы уведомлений
-"""
-
-"тест мерджа"
+async def notify_expired_7_days(bot: Bot, user_id: int) -> bool:
+    """Уведомление через 7 дней после окончания (последнее)"""
+    try:
+        await bot.send_message(
+            chat_id=user_id,
+            text=EXPIRED_7_DAYS_TEXT,
+            reply_markup=get_expired_7_days_keyboard()
+        )
+        print(f"✅ Уведомление (7 дней после, последнее) отправлено пользователю {user_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")
+        return False

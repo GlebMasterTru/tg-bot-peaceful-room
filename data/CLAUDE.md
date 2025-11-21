@@ -358,15 +358,14 @@ python run.py
 - Service layer for business logic
 - Filter pattern for admin checks
 - Centralized configuration
+- **Subscription expiration system (2025-11-21)**:
+  - Background task `check_subscriptions_task()` runs daily at 12:00 + on bot startup
+  - Auto-deactivates expired subscriptions (`check_and_expire_subscriptions()`)
+  - Sends notifications: 3 days before, 1 day before, last day (0 days), and on expiration
+  - Inline keyboards on notifications: "Продлить доступ" + "Зайти в Тихую Комнату"
 
 **TODO**:
-1. Subscription expiration system:
-   - Background task to check expiring subscriptions (service exists in `app/services/subscription.py`)
-   - Auto-deactivate expired subscriptions
-   - Send notifications: 3 days before, 1 day before, on expiration day
-   - Implementation: Add task to `app/background_tasks.py` using `check_expiring_soon_subscriptions()`
-
-2. Comprehensive error logging:
+1. Comprehensive error logging:
    - File-based logging or external service (e.g., Sentry)
    - Admin notifications on critical failures
    - Structured error tracking
@@ -521,13 +520,20 @@ logging.basicConfig(
 
 ---
 
-**Last Updated**: 2025-11-19
-**Bot Version**: Modular architecture - commit `b7e3f49`
+**Last Updated**: 2025-11-21
+**Bot Version**: Modular architecture with subscription notifications
 **Architecture**: Refactored to modular structure (database/, handlers/, keyboards/, services/, filters/, utils/)
 **aiogram Version**: 3.22.0
 **Maintained by**: Development team with AI assistance
 
 ## Architecture Changelog
+
+**2025-11-21** - Subscription expiration notifications:
+- Added `check_subscriptions_task()` to background_tasks.py (CronTrigger at 12:00 + startup)
+- Notifications at exactly 3 days, 1 day, 0 days (last day) before expiration
+- **BUGFIX**: Changed `days_left <= 3` to `days_left == 3` (otherwise all users caught by first condition)
+- **BUGFIX**: Compare `.date()` not `datetime` for accurate day calculation
+- Added inline keyboards to expiration notifications
 
 **2025-11-19** - Major refactoring to modular architecture:
 - Separated monolithic files into organized modules
