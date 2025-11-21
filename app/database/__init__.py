@@ -36,11 +36,15 @@ from app.database.users import (
 
 # Payments
 from app.database.payments import (
-    clean_telegram_username,
-    format_date_for_user,
     get_subscription_status,
     sync_user_subscription,
     process_all_pending_payments
+)
+
+# Utils (для обратной совместимости импортов)
+from app.utils.formatters import (
+    clean_telegram_username,
+    format_date_for_user
 )
 
 

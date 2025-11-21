@@ -98,9 +98,10 @@ async def callback_room_entrance(callback: CallbackQuery):
     if not user:
         await callback.answer("❌ Ошибка: пользователь не найден", show_alert=True)
         return
-    
-    is_diamond = user.get('is_diamond', False)
-    
+
+    # ВАЖНО: is_diamond в БД это строка 'True'/'False', не bool!
+    is_diamond = user.get('is_diamond', 'False') == 'True'
+
     # Этот обработчик должен вызываться только для Diamond
     if not is_diamond:
         await callback.answer("❌ Ошибка: доступ запрещён", show_alert=True)
