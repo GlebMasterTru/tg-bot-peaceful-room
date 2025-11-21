@@ -85,6 +85,10 @@ async def check_subscriptions_task(bot):
     for user_id in expiring['expiring_1_day']:
         await notify_subscription_expiring(bot, user_id, 1)
 
+    # Уведомления в последний день (сегодня)
+    for user_id in expiring['expiring_today']:
+        await notify_subscription_expiring(bot, user_id, 0)
+
     print("✅ Проверка подписок завершена!\n")
 
 

@@ -100,11 +100,13 @@ async def check_expiring_soon_subscriptions() -> dict:
     Возвращает словарь с пользователями, которым нужно отправить уведомления:
     - За 3 дня до истечения
     - За 1 день до истечения
+    - В последний день (0 дней)
 
     Returns:
         dict: {
             'expiring_3_days': [user_id1, user_id2, ...],
-            'expiring_1_day': [user_id3, user_id4, ...]
+            'expiring_1_day': [user_id3, user_id4, ...],
+            'expiring_today': [user_id5, user_id6, ...]
         }
     """
     print("🔍 Проверка скоро истекающих подписок...")
@@ -113,6 +115,7 @@ async def check_expiring_soon_subscriptions() -> dict:
         all_users = get_all_users()
         expiring_3_days = []
         expiring_1_day = []
+        expiring_today = []
 
         for user_data in all_users:
             user_id = user_data.get('user_id')
@@ -138,18 +141,25 @@ async def check_expiring_soon_subscriptions() -> dict:
                 expiring_1_day.append(user_id)
                 print(f"⚠️ Подписка истекает через 1 день: {user_id}")
 
-        print(f"📊 Истекают через 3 дня: {len(expiring_3_days)}, через 1 день: {len(expiring_1_day)}")
+            # Последний день (сегодня)
+            elif days_left == 0:
+                expiring_today.append(user_id)
+                print(f"⚠️ Подписка истекает сегодня: {user_id}")
+
+        print(f"📊 Истекают через 3 дня: {len(expiring_3_days)}, через 1 день: {len(expiring_1_day)}, сегодня: {len(expiring_today)}")
 
         return {
             'expiring_3_days': expiring_3_days,
-            'expiring_1_day': expiring_1_day
+            'expiring_1_day': expiring_1_day,
+            'expiring_today': expiring_today
         }
 
     except Exception as e:
         print(f"❌ Ошибка проверки истекающих подписок: {e}")
         return {
             'expiring_3_days': [],
-            'expiring_1_day': []
+            'expiring_1_day': [],
+            'expiring_today': []
         }
 
 
