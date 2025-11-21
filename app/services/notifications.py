@@ -95,23 +95,27 @@ async def notify_subscription_expiring(bot: Bot, user_id: int, days_left: int) -
     Args:
         bot: Экземпляр бота
         user_id: Telegram ID пользователя
-        days_left: Сколько дней осталось
+        days_left: Сколько дней осталось (0 = последний день)
 
     Returns:
         bool: True если отправлено успешно
     """
     try:
-        days_word = get_days_word(days_left)
-
-        text = f"⚠️ Внимание! Твоя подписка истекает через {days_left} {days_word}.\n\n"
-        text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
+        if days_left == 0:
+            # Последний день подписки
+            text = "⚠️ Внимание! Сегодня последний день твоей подписки.\n\n"
+            text += "Продли сейчас, чтобы не потерять доступ к Тихой Комнате."
+        else:
+            days_word = get_days_word(days_left)
+            text = f"⚠️ Внимание! Твоя подписка истекает через {days_left} {days_word}.\n\n"
+            text += "Рекомендуем продлить заранее, чтобы не потерять доступ к Тихой Комнате."
 
         await bot.send_message(
             chat_id=user_id,
             text=text,
             reply_markup=get_expiring_keyboard()
         )
-        print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id}")
+        print(f"✅ Уведомление об истечении подписки отправлено пользователю {user_id} (дней: {days_left})")
         return True
     except Exception as e:
         print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")

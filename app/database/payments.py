@@ -133,11 +133,12 @@ def get_subscription_status(user_id: int) -> dict:
             try:
                 end_date_obj = datetime.strptime(sub_end, '%Y-%m-%d %H:%M:%S')
                 current_date = datetime.now()
-                days_left = (end_date_obj - current_date).days
+                # Сравниваем только даты (без времени) для корректного подсчета дней
+                days_left = (end_date_obj.date() - current_date.date()).days
 
                 if days_left > 3:
                     status = 'active'
-                elif 1 <= days_left <= 3:
+                elif 0 <= days_left <= 3:
                     status = 'expiring_soon'
                 else:
                     status = 'expired'
@@ -147,7 +148,7 @@ def get_subscription_status(user_id: int) -> dict:
                     'is_sub_active': True,
                     'end_date': format_date_for_user(sub_end),
                     'end_date_raw': sub_end,
-                    'days_left': days_left if days_left > 0 else 0
+                    'days_left': days_left if days_left >= 0 else 0
                 }
 
             except ValueError as e:
