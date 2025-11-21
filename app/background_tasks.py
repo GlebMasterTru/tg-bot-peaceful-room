@@ -5,6 +5,7 @@
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from app.database import (
     migrate_many_users,
@@ -12,6 +13,14 @@ from app.database import (
     process_all_pending_payments
 )
 from app.services import notify_payment_processed
+from app.services.subscription import (
+    check_and_expire_subscriptions,
+    check_expiring_soon_subscriptions
+)
+from app.services.notifications import (
+    notify_subscription_expired,
+    notify_subscription_expiring
+)
 from app.config import (
     PAYMENT_CHECK_INTERVAL_SECONDS,
     USER_SYNC_INTERVAL_MINUTES
@@ -37,23 +46,62 @@ async def check_payments_task(bot):
 
 async def sync_users_task(bot):
     print("🔄 Синхронизация пользователей...")
-    
+
     print("📋 Миграция временных VIP пользователей...")
     migrate_many_users()
-    
+
     print("📋 Синхронизация is_vip...")
     sync_is_vip_for_all_users()
-    
+
     print("✅ Синхронизация завершена!\n")
+
+
+async def check_subscriptions_task(bot):
+    """
+    Фоновая задача проверки подписок
+    Запускается раз в день в 12:00 + сразу при старте бота
+
+    1. Деактивирует истекшие подписки
+    2. Отправляет уведомления за 3 дня и 1 день до истечения
+    3. Отправляет уведомления об истечении
+    """
+    print("📅 Проверка подписок...")
+
+    # 1. Проверяем и деактивируем истекшие подписки
+    expired_users = await check_and_expire_subscriptions()
+
+    # Отправляем уведомления об истечении
+    for user_id in expired_users:
+        await notify_subscription_expired(bot, user_id)
+
+    # 2. Проверяем скоро истекающие подписки
+    expiring = await check_expiring_soon_subscriptions()
+
+    # Уведомления за 3 дня
+    for user_id in expiring['expiring_3_days']:
+        await notify_subscription_expiring(bot, user_id, 3)
+
+    # Уведомления за 1 день
+    for user_id in expiring['expiring_1_day']:
+        await notify_subscription_expiring(bot, user_id, 1)
+
+    print("✅ Проверка подписок завершена!\n")
 
 
 # ============================================================================
 # НАСТРОЙКА ПЛАНИРОВЩИКА
 # ============================================================================
 
+async def run_initial_subscription_check(bot):
+    """Запустить проверку подписок сразу при старте бота"""
+    print("\n🚀 Запуск начальной проверки подписок...")
+    await check_subscriptions_task(bot)
+
+
 def setup_scheduler(bot):
     scheduler = AsyncIOScheduler()
 
+    # Задача 1: Проверка оплат (каждые 30 секунд)
     scheduler.add_job(
         check_payments_task,
         trigger=IntervalTrigger(seconds=PAYMENT_CHECK_INTERVAL_SECONDS),
@@ -64,6 +112,7 @@ def setup_scheduler(bot):
     )
     print(f"⚡ Задача 'Проверка оплат' настроена: каждые {PAYMENT_CHECK_INTERVAL_SECONDS} секунд")
 
+    # Задача 2: Синхронизация пользователей (каждые 15 минут)
     scheduler.add_job(
         sync_users_task,
         trigger=IntervalTrigger(minutes=USER_SYNC_INTERVAL_MINUTES),
@@ -73,8 +122,29 @@ def setup_scheduler(bot):
         replace_existing=True
     )
     print(f"🔄 Задача 'Синхронизация пользователей' настроена: каждые {USER_SYNC_INTERVAL_MINUTES} минут")
-    
+
+    # Задача 3: Проверка подписок (каждый день в 12:00)
+    scheduler.add_job(
+        check_subscriptions_task,
+        trigger=CronTrigger(hour=12, minute=0),
+        args=[bot],
+        id='check_subscriptions',
+        name='Проверка подписок',
+        replace_existing=True
+    )
+    print("📅 Задача 'Проверка подписок' настроена: каждый день в 12:00")
+
+    # Задача 4: Начальная проверка подписок (сразу при запуске)
+    scheduler.add_job(
+        check_subscriptions_task,
+        args=[bot],
+        id='initial_subscription_check',
+        name='Начальная проверка подписок',
+        replace_existing=True
+    )
+    print("🔍 Начальная проверка подписок будет запущена сразу...")
+
     scheduler.start()
     print("🚀 Планировщик запущен!\n")
-    
+
     return scheduler
