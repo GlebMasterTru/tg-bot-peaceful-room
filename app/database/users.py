@@ -85,7 +85,7 @@ def add_user(user_id: int, username: str, first_name: str) -> bool:
         first_name: Имя пользователя
 
     Returns:
-        bool: True если успешно, False если ошибка
+        bool: True если успешно, False если ошибка (или уже существует)
 
     Колонки таблицы (14 штук):
         A: user_id, B: username, C: first_name, D: joined_at, E: last_activity,
@@ -93,6 +93,11 @@ def add_user(user_id: int, username: str, first_name: str) -> bool:
         K: last_updated_info, L: phone_number, M: email, N: Ручное примечание
     """
     try:
+        # Защита от дублей: проверяем существование прямо перед добавлением
+        existing = users_worksheet.find(str(user_id))
+        if existing:
+            print(f"ℹ️ Пользователь {user_id} уже существует (строка {existing.row})")
+            return False
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # Все 14 колонок в правильном порядке
         new_row = [
