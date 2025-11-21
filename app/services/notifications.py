@@ -72,28 +72,32 @@ def get_expiring_1_day_keyboard():
     """Клавиатура за 1 день до окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
-        [InlineKeyboardButton(text='Посмотреть новую Комнату', callback_data='go_to_room_entrance')]
+        [InlineKeyboardButton(text='Посмотреть новую Комнату', callback_data='go_to_room_entrance')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
 def get_expiring_today_keyboard():
     """Клавиатура в день окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Продлить на месяц', callback_data='renew_subscription')]
+        [InlineKeyboardButton(text='Продлить на месяц', callback_data='renew_subscription')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
 def get_expired_3_days_keyboard():
     """Клавиатура через 3 дня после окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')]
+        [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
 def get_expired_7_days_keyboard():
     """Клавиатура через 7 дней после окончания (последнее)"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Вернуться', callback_data='renew_subscription')]
+        [InlineKeyboardButton(text='Вернуться в комнату', callback_data='go_to_room_entrance')],
+        [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ])
 
 
