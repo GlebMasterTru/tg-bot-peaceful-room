@@ -86,10 +86,31 @@ def add_user(user_id: int, username: str, first_name: str) -> bool:
 
     Returns:
         bool: True если успешно, False если ошибка
+
+    Колонки таблицы (14 штук):
+        A: user_id, B: username, C: first_name, D: joined_at, E: last_activity,
+        F: is_vip, G: is_diamond, H: is_sub_active, I: sub_start, J: sub_end,
+        K: last_updated_info, L: phone_number, M: email, N: Ручное примечание
     """
     try:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_row = [str(user_id), username, first_name, current_time, current_time, 'False']
+        # Все 14 колонок в правильном порядке
+        new_row = [
+            str(user_id),    # A: user_id
+            username,        # B: username
+            first_name,      # C: first_name
+            current_time,    # D: joined_at
+            current_time,    # E: last_activity
+            'False',         # F: is_vip
+            'False',         # G: is_diamond
+            'False',         # H: is_sub_active
+            '',              # I: sub_start
+            '',              # J: sub_end
+            current_time,    # K: last_updated_info
+            '',              # L: phone_number
+            '',              # M: email
+            ''               # N: Ручное примечание
+        ]
         users_worksheet.append_row(new_row)
         print(f"✅ Пользователь {user_id} добавлен в БД")
         return True
