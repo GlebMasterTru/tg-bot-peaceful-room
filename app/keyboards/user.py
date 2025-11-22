@@ -144,3 +144,16 @@ help_menu = InlineKeyboardMarkup(
         [InlineKeyboardButton(text='Назад', callback_data='back_to_main')]
     ]
 )
+
+
+# ============================================================================
+# ГОЛОСОВАНИЕ (ДЕКАБРЬ 2025)
+# ============================================================================
+
+vote_menu = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text='1️⃣', callback_data='vote_1')],
+        [InlineKeyboardButton(text='2️⃣', callback_data='vote_2')],
+        [InlineKeyboardButton(text='3️⃣', callback_data='vote_3')]
+    ]
+)

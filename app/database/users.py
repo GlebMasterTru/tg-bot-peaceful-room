@@ -466,3 +466,69 @@ def sync_is_vip_for_all_users() -> bool:
     except Exception as e:
         print(f"❌ Ошибка синхронизации is_vip: {e}")
         return False
+
+
+# ============================================================================
+# ГОЛОСОВАНИЕ
+# ============================================================================
+
+def save_vote(user_id: int, vote_value: str) -> bool:
+    """
+    Сохранить голос пользователя
+
+    Args:
+        user_id: Telegram ID пользователя
+        vote_value: Значение голоса ('1', '2', или '3')
+
+    Returns:
+        bool: True если успешно
+    """
+    try:
+        headers = users_worksheet.row_values(1)
+
+        # Проверяем есть ли колонка vote_dec_2025
+        if 'vote_dec_2025' not in headers:
+            print("⚠️ Колонка 'vote_dec_2025' не найдена в таблице!")
+            print("   Добавьте колонку O: vote_dec_2025 в Google Sheets")
+            return False
+
+        # Обновляем голос
+        return update_user_batch(user_id, {'vote_dec_2025': vote_value})
+
+    except Exception as e:
+        print(f"❌ Ошибка сохранения голоса {user_id}: {e}")
+        return False
+
+
+def get_vote_stats() -> dict:
+    """
+    Получить статистику голосования
+
+    Returns:
+        dict: {'1': count, '2': count, '3': count, 'total': count, 'not_voted': count}
+    """
+    try:
+        all_users = users_worksheet.get_all_records()
+
+        stats = {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            'total': 0,
+            'not_voted': 0
+        }
+
+        for user in all_users:
+            vote = user.get('vote_dec_2025', '')
+
+            if vote in ['1', '2', '3']:
+                stats[vote] += 1
+                stats['total'] += 1
+            else:
+                stats['not_voted'] += 1
+
+        return stats
+
+    except Exception as e:
+        print(f"❌ Ошибка получения статистики голосов: {e}")
+        return {'1': 0, '2': 0, '3': 0, 'total': 0, 'not_voted': 0}
