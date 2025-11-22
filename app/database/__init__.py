@@ -31,7 +31,9 @@ from app.database.users import (
     is_temporarily_vip_user,
     migrate_single_user,
     migrate_many_users,
-    sync_is_vip_for_all_users
+    sync_is_vip_for_all_users,
+    save_vote,
+    get_vote_stats
 )
 
 # Payments
@@ -73,6 +75,8 @@ __all__ = [
     'migrate_single_user',
     'migrate_many_users',
     'sync_is_vip_for_all_users',
+    'save_vote',
+    'get_vote_stats',
 
     # Payments functions
     'clean_telegram_username',

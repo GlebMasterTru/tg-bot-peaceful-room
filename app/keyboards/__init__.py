@@ -12,7 +12,8 @@ from app.keyboards.user import (
     renew_subscription_menu,
     room_entrance_menu,
     diary_menu,
-    help_menu
+    help_menu,
+    vote_menu
 )
 
 # Admin keyboards
@@ -31,6 +32,7 @@ __all__ = [
     'room_entrance_menu',
     'diary_menu',
     'help_menu',
+    'vote_menu',
 
     # Admin keyboards
     'broadcast_confirmation_menu',

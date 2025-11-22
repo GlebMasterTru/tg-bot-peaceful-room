@@ -11,15 +11,16 @@ import app.keyboards as kb
 import app.texts as txt
 
 from app.database import (
-    get_user, 
-    add_user, 
-    get_user_privileges, 
-    get_links, 
-    is_temporarily_vip_user, 
-    migrate_single_user, 
+    get_user,
+    add_user,
+    get_user_privileges,
+    get_links,
+    is_temporarily_vip_user,
+    migrate_single_user,
     sync_user_subscription,
     get_subscription_status,
-    get_all_users
+    get_all_users,
+    save_vote
 )
 
 from app.utils.formatters import get_days_word
@@ -259,5 +260,38 @@ async def verify_payment(callback: CallbackQuery):
             pass  # Игнорируем - сообщение уже такое
         else:
             raise  # Пробрасываем другие ошибки
+
+
+# ============================================================================
+# ГОЛОСОВАНИЕ (ДЕКАБРЬ 2025)
+# ============================================================================
+
+@router.callback_query(F.data.in_(['vote_1', 'vote_2', 'vote_3']))
+async def handle_vote(callback: CallbackQuery):
+    """Обработка голосования пользователя"""
+    user_id = callback.from_user.id
+    vote_value = callback.data.split('_')[1]  # Получаем '1', '2' или '3'
+
+    # Сохраняем голос в БД
+    success = save_vote(user_id, vote_value)
+
+    if success:
+        # Текст благодарности в зависимости от выбора
+        responses = {
+            '1': "Спасибо. Я слышу.\nСлышу твою точку. И знаю, с чем ты сейчас.",
+            '2': "Спасибо. Я слышу.\nТвоё дыхание, твою паузу. Всё, что ты не можешь.",
+            '3': "Спасибо. Я слышу.\nТвоё молчание. То, что ты не просишь. И то, что важно."
+        }
+
+        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                responses.get(vote_value, "Спасибо. Я слышу."),
+                reply_markup=None
+            )
+        except TelegramBadRequest:
+            pass
+    else:
+        await callback.answer("⚠️ Не удалось сохранить ваш выбор. Попробуйте позже.", show_alert=True)
 
 

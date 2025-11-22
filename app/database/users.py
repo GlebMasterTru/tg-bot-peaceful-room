@@ -85,7 +85,7 @@ def add_user(user_id: int, username: str, first_name: str) -> bool:
         first_name: Имя пользователя
 
     Returns:
-        bool: True если успешно, False если ошибка
+        bool: True если успешно, False если ошибка (или уже существует)
 
     Колонки таблицы (14 штук):
         A: user_id, B: username, C: first_name, D: joined_at, E: last_activity,
@@ -93,6 +93,11 @@ def add_user(user_id: int, username: str, first_name: str) -> bool:
         K: last_updated_info, L: phone_number, M: email, N: Ручное примечание
     """
     try:
+        # Защита от дублей: проверяем существование прямо перед добавлением
+        existing = users_worksheet.find(str(user_id))
+        if existing:
+            print(f"ℹ️ Пользователь {user_id} уже существует (строка {existing.row})")
+            return False
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # Все 14 колонок в правильном порядке
         new_row = [
@@ -461,3 +466,69 @@ def sync_is_vip_for_all_users() -> bool:
     except Exception as e:
         print(f"❌ Ошибка синхронизации is_vip: {e}")
         return False
+
+
+# ============================================================================
+# ГОЛОСОВАНИЕ
+# ============================================================================
+
+def save_vote(user_id: int, vote_value: str) -> bool:
+    """
+    Сохранить голос пользователя (заменяет предыдущий ответ если был)
+
+    Args:
+        user_id: Telegram ID пользователя
+        vote_value: Значение голоса ('1', '2', или '3')
+
+    Returns:
+        bool: True если успешно
+    """
+    try:
+        headers = users_worksheet.row_values(1)
+
+        # Проверяем есть ли колонка vote_response
+        if 'vote_response' not in headers:
+            print("⚠️ Колонка 'vote_response' не найдена в таблице!")
+            print("   Добавьте колонку O: vote_response в Google Sheets")
+            return False
+
+        # Обновляем голос (заменяет старое значение)
+        return update_user_batch(user_id, {'vote_response': vote_value})
+
+    except Exception as e:
+        print(f"❌ Ошибка сохранения голоса {user_id}: {e}")
+        return False
+
+
+def get_vote_stats() -> dict:
+    """
+    Получить статистику голосования
+
+    Returns:
+        dict: {'1': count, '2': count, '3': count, 'total': count, 'not_voted': count}
+    """
+    try:
+        all_users = users_worksheet.get_all_records()
+
+        stats = {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            'total': 0,
+            'not_voted': 0
+        }
+
+        for user in all_users:
+            vote = user.get('vote_response', '')
+
+            if vote in ['1', '2', '3']:
+                stats[vote] += 1
+                stats['total'] += 1
+            else:
+                stats['not_voted'] += 1
+
+        return stats
+
+    except Exception as e:
+        print(f"❌ Ошибка получения статистики голосов: {e}")
+        return {'1': 0, '2': 0, '3': 0, 'total': 0, 'not_voted': 0}
