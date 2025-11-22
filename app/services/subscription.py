@@ -243,6 +243,6 @@ def get_subscription_info_text(user_id: int) -> str:
     elif status == 'expired':
         return f"❌ Подписка истекла {sub_info['end_date']}"
     elif status == 'none':
-        return "ℹ️ Активной подписки нет"
+        return "ℹ️ Активной подписки ещё не было"
     else:
         return "⚠️ Не удалось проверить статус подписки"
