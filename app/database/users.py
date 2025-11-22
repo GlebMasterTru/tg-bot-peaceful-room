@@ -474,7 +474,7 @@ def sync_is_vip_for_all_users() -> bool:
 
 def save_vote(user_id: int, vote_value: str) -> bool:
     """
-    Сохранить голос пользователя
+    Сохранить голос пользователя (заменяет предыдущий ответ если был)
 
     Args:
         user_id: Telegram ID пользователя
@@ -486,14 +486,14 @@ def save_vote(user_id: int, vote_value: str) -> bool:
     try:
         headers = users_worksheet.row_values(1)
 
-        # Проверяем есть ли колонка vote_dec_2025
-        if 'vote_dec_2025' not in headers:
-            print("⚠️ Колонка 'vote_dec_2025' не найдена в таблице!")
-            print("   Добавьте колонку O: vote_dec_2025 в Google Sheets")
+        # Проверяем есть ли колонка vote_response
+        if 'vote_response' not in headers:
+            print("⚠️ Колонка 'vote_response' не найдена в таблице!")
+            print("   Добавьте колонку O: vote_response в Google Sheets")
             return False
 
-        # Обновляем голос
-        return update_user_batch(user_id, {'vote_dec_2025': vote_value})
+        # Обновляем голос (заменяет старое значение)
+        return update_user_batch(user_id, {'vote_response': vote_value})
 
     except Exception as e:
         print(f"❌ Ошибка сохранения голоса {user_id}: {e}")
@@ -519,7 +519,7 @@ def get_vote_stats() -> dict:
         }
 
         for user in all_users:
-            vote = user.get('vote_dec_2025', '')
+            vote = user.get('vote_response', '')
 
             if vote in ['1', '2', '3']:
                 stats[vote] += 1
