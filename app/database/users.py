@@ -519,7 +519,7 @@ def get_vote_stats() -> dict:
         }
 
         for user in all_users:
-            vote = user.get('vote_response', '')
+            vote = str(user.get('vote_response', '')).strip()
 
             if vote in ['1', '2', '3']:
                 stats[vote] += 1
