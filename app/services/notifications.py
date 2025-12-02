@@ -14,8 +14,8 @@ import app.texts as txt
 # ТЕКСТЫ УВЕДОМЛЕНИЙ О ПОДПИСКЕ
 # ============================================================================
 
-# За 1 день до окончания
-EXPIRING_1_DAY_TEXT = """Завтра Комната закроется —
+# За 3 дня до окончания
+EXPIRING_3_DAYS_TEXT = """Через три дня Комната закроется —
 но ты можешь остаться.
 
 Каждый месяц здесь открывается новая Комната.
@@ -68,8 +68,8 @@ EXPIRED_7_DAYS_TEXT = """Даже если Комната больше не зо
 # КЛАВИАТУРЫ ДЛЯ УВЕДОМЛЕНИЙ
 # ============================================================================
 
-def get_expiring_1_day_keyboard():
-    """Клавиатура за 1 день до окончания"""
+def get_expiring_3_days_keyboard():
+    """Клавиатура за 3 дня до окончания"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Продлить доступ', callback_data='renew_subscription')],
         [InlineKeyboardButton(text='Посмотреть новую Комнату', callback_data='go_to_room_entrance')],
@@ -144,15 +144,15 @@ async def notify_multiple_users(bot: Bot, user_ids: List[int], text: str) -> dic
 # УВЕДОМЛЕНИЯ О ПОДПИСКАХ
 # ============================================================================
 
-async def notify_expiring_1_day(bot: Bot, user_id: int) -> bool:
-    """Уведомление за 1 день до окончания подписки"""
+async def notify_expiring_3_days(bot: Bot, user_id: int) -> bool:
+    """Уведомление за 3 дня до окончания подписки"""
     try:
         await bot.send_message(
             chat_id=user_id,
-            text=EXPIRING_1_DAY_TEXT,
-            reply_markup=get_expiring_1_day_keyboard()
+            text=EXPIRING_3_DAYS_TEXT,
+            reply_markup=get_expiring_3_days_keyboard()
         )
-        print(f"✅ Уведомление (1 день до) отправлено пользователю {user_id}")
+        print(f"✅ Уведомление (3 дня до) отправлено пользователю {user_id}")
         return True
     except Exception as e:
         print(f"❌ Ошибка отправки уведомления пользователю {user_id}: {e}")

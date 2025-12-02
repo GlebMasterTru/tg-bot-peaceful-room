@@ -15,7 +15,7 @@ from app.services.subscription import (
 from app.services.notifications import (
     notify_payment_processed,
     notify_multiple_users,
-    notify_expiring_1_day,
+    notify_expiring_3_days,
     notify_expiring_today,
     notify_expired_3_days,
     notify_expired_7_days
@@ -32,7 +32,7 @@ __all__ = [
     # Notifications
     'notify_payment_processed',
     'notify_multiple_users',
-    'notify_expiring_1_day',
+    'notify_expiring_3_days',
     'notify_expiring_today',
     'notify_expired_3_days',
     'notify_expired_7_days',
