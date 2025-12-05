@@ -101,6 +101,57 @@ def get_tilda_worksheet():
         raise
 
 
+def get_room_visits_worksheet():
+    """
+    Возвращает лист 'room_visits' из основной БД
+
+    Returns:
+        gspread.Worksheet: Лист с данными о посещениях комнат
+    """
+    try:
+        sheet = client.open_by_key(SPREADSHEET_ID_DB)
+        worksheet = sheet.worksheet("room_visits")
+        print(f"🚪 Подключен к листу: {worksheet.title} ({worksheet.row_count} строк)")
+        return worksheet
+    except Exception as e:
+        print(f"❌ Ошибка получения листа 'room_visits': {e}")
+        raise
+
+
+def get_touchpoints_log_worksheet():
+    """
+    Возвращает лист 'touchpoints_log' из основной БД
+
+    Returns:
+        gspread.Worksheet: Лист с логами touchpoints
+    """
+    try:
+        sheet = client.open_by_key(SPREADSHEET_ID_DB)
+        worksheet = sheet.worksheet("touchpoints_log")
+        print(f"📨 Подключен к листу: {worksheet.title} ({worksheet.row_count} строк)")
+        return worksheet
+    except Exception as e:
+        print(f"❌ Ошибка получения листа 'touchpoints_log': {e}")
+        raise
+
+
+def get_rooms_registry_worksheet():
+    """
+    Возвращает лист 'rooms_registry' из основной БД
+
+    Returns:
+        gspread.Worksheet: Лист с реестром комнат
+    """
+    try:
+        sheet = client.open_by_key(SPREADSHEET_ID_DB)
+        worksheet = sheet.worksheet("rooms_registry")
+        print(f"🏠 Подключен к листу: {worksheet.title} ({worksheet.row_count} строк)")
+        return worksheet
+    except Exception as e:
+        print(f"❌ Ошибка получения листа 'rooms_registry': {e}")
+        raise
+
+
 # ============================================================================
 # ИНИЦИАЛИЗАЦИЯ ЛИСТОВ (при импорте модуля)
 # ============================================================================
@@ -109,6 +160,11 @@ def get_tilda_worksheet():
 users_worksheet = get_users_worksheet()
 config_worksheet = get_config_worksheet()
 tilda_worksheet = get_tilda_worksheet()
+
+# Новые листы для DataLayer
+room_visits_worksheet = get_room_visits_worksheet()
+touchpoints_log_worksheet = get_touchpoints_log_worksheet()
+rooms_registry_worksheet = get_rooms_registry_worksheet()
 
 print("✅ Все листы успешно инициализированы\n")
 
