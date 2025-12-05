@@ -27,6 +27,7 @@ class User:
         sub_start: Начало подписки
         sub_end: Окончание подписки
         last_updated_info: Последнее обновление
+        vote_response: Ответ на голосование (1, 2, 3)
         status: Статус пользователя (active/inactive/churned)
         first_room_visit: Первое посещение комнаты
         last_room_visit: Последнее посещение комнаты
@@ -45,6 +46,7 @@ class User:
     sub_start: Optional[str] = None
     sub_end: Optional[str] = None
     last_updated_info: Optional[str] = None
+    vote_response: Optional[str] = None
 
     # Новые поля для трекинга
     status: str = 'active'  # active, inactive, churned
@@ -69,6 +71,7 @@ class User:
             sub_start=data.get('sub_start'),
             sub_end=data.get('sub_end'),
             last_updated_info=data.get('last_updated_info'),
+            vote_response=data.get('vote_response'),
             status=data.get('status', 'active'),
             first_room_visit=data.get('first_room_visit'),
             last_room_visit=data.get('last_room_visit'),
@@ -91,6 +94,7 @@ class User:
             'sub_start': self.sub_start or '',
             'sub_end': self.sub_end or '',
             'last_updated_info': self.last_updated_info or '',
+            'vote_response': self.vote_response or '',
             'status': self.status,
             'first_room_visit': self.first_room_visit or '',
             'last_room_visit': self.last_room_visit or '',

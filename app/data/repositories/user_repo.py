@@ -75,13 +75,16 @@ class SheetsUserRepository(IUserRepository):
         Returns:
             bool: True если успешно, False если ошибка
 
-        Структура колонок (без колонки N "Ручное примечание"):
-        A-M: старые колонки
-        N: status
-        O: first_room_visit
-        P: last_room_visit
-        Q: total_room_visits
-        R-Y: touch_1_sent ... touch_8_sent
+        Структура колонок:
+        A-M: user_id, username, first_name, joined_at, last_activity,
+             is_vip, is_diamond, is_sub_active, sub_start, sub_end,
+             last_updated_info, phone_number, email
+        N: vote_response
+        O: status
+        P: first_room_visit
+        Q: last_room_visit
+        R: total_room_visits
+        S-Z: touch_1_sent ... touch_8_sent
         """
         try:
             # Защита от дублей
@@ -92,7 +95,7 @@ class SheetsUserRepository(IUserRepository):
 
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Новая строка с обновлённой структурой (без "Ручного примечания")
+            # Новая строка с полной структурой
             new_row = [
                 str(user_id),    # A: user_id
                 username,        # B: username
@@ -107,18 +110,19 @@ class SheetsUserRepository(IUserRepository):
                 current_time,    # K: last_updated_info
                 '',              # L: phone_number
                 '',              # M: email
-                'active',        # N: status (НОВОЕ)
-                '',              # O: first_room_visit
-                '',              # P: last_room_visit
-                '0',             # Q: total_room_visits
-                '',              # R: touch_1_sent
-                '',              # S: touch_2_sent
-                '',              # T: touch_3_sent
-                '',              # U: touch_4_sent
-                '',              # V: touch_5_sent
-                '',              # W: touch_6_sent
-                '',              # X: touch_7_sent
-                '',              # Y: touch_8_sent
+                '',              # N: vote_response
+                'active',        # O: status
+                '',              # P: first_room_visit
+                '',              # Q: last_room_visit
+                '0',             # R: total_room_visits
+                '',              # S: touch_1_sent
+                '',              # T: touch_2_sent
+                '',              # U: touch_3_sent
+                '',              # V: touch_4_sent
+                '',              # W: touch_5_sent
+                '',              # X: touch_6_sent
+                '',              # Y: touch_7_sent
+                '',              # Z: touch_8_sent
             ]
 
             self.worksheet.append_row(new_row)
