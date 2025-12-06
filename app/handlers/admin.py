@@ -327,3 +327,21 @@ async def cmd_send_vote(message: Message):
         f"📈 Успешность: {int(success/total*100) if total > 0 else 0}%",
         parse_mode="HTML"
     )
+
+
+@router.message(Command("test_notifications"), IsAdmin())
+async def test_notif(message: Message):
+    from app.services.subscription import (
+        check_expiring_soon_subscriptions,
+        check_expired_subscriptions_for_reminders
+    )
+    
+    expiring = await check_expiring_soon_subscriptions()
+    expired = await check_expired_subscriptions_for_reminders()
+    
+    await message.answer(
+        f"Expiring 3 days: {expiring['expiring_3_days']}\n"
+        f"Expiring today: {expiring['expiring_today']}\n"
+        f"Expired 3 days: {expired['expired_3_days']}\n"
+        f"Expired 7 days: {expired['expired_7_days']}"
+    )
