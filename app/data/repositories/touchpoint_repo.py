@@ -163,3 +163,7 @@ class SheetsTouchpointRepository(ITouchpointRepository):
         except Exception as e:
             print(f"❌ Ошибка получения touchpoints пользователя {user_id}: {e}")
             return []
+
+
+# Глобальный экземпляр репозитория
+touchpoint_repository = SheetsTouchpointRepository()

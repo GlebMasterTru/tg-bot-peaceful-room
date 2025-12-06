@@ -208,3 +208,7 @@ class SheetsUserRepository(IUserRepository):
         # TODO: Реализовать логику в задаче 3.1
         print(f"ℹ️ get_for_touchpoint({touch_number}): заглушка, вернёт пустой список")
         return []
+
+
+# Глобальный экземпляр репозитория
+user_repository = SheetsUserRepository()

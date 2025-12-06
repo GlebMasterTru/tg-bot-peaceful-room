@@ -84,3 +84,75 @@ class SheetsRoomRepository(IRoomRepository):
         except Exception as e:
             print(f"❌ Ошибка генерации tracking URL: {e}")
             return ""
+
+    def get_all(self, is_active: bool = None) -> List[dict]:
+        """
+        Получить все комнаты
+
+        Args:
+            is_active: Фильтр по активности (None = все)
+
+        Returns:
+            list: Список комнат
+        """
+        try:
+            all_records = self.worksheet.get_all_records()
+            if is_active is None:
+                return all_records
+            else:
+                return [
+                    record for record in all_records
+                    if record.get('is_active') == ('True' if is_active else 'False') or
+                       record.get('is_active') is is_active
+                ]
+        except Exception as e:
+            print(f"❌ Ошибка получения комнат: {e}")
+            return []
+
+    def register_room(
+        self,
+        room_id: str,
+        room_name: str,
+        room_url: str,
+        access_level: str,
+        is_active: bool
+    ) -> bool:
+        """
+        Зарегистрировать новую комнату
+
+        Args:
+            room_id: ID комнаты
+            room_name: Название комнаты
+            room_url: URL комнаты
+            access_level: Уровень доступа (free, subscriber, vip, diamond)
+            is_active: Активна ли комната
+
+        Returns:
+            bool: True если успешно
+        """
+        try:
+            # Проверка на дубли
+            existing = self.get_by_id(room_id)
+            if existing:
+                print(f"ℹ️ Комната {room_id} уже зарегистрирована")
+                return False
+
+            new_row = [
+                room_id,
+                room_name,
+                room_url,
+                access_level,
+                str(is_active)
+            ]
+
+            self.worksheet.append_row(new_row)
+            print(f"✅ Комната {room_name} зарегистрирована")
+            return True
+
+        except Exception as e:
+            print(f"❌ Ошибка регистрации комнаты: {e}")
+            return False
+
+
+# Глобальный экземпляр репозитория
+room_repository = SheetsRoomRepository()
