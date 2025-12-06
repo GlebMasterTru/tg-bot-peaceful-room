@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from app.utils.formatters import parse_datetime_flexible
+
 
 @dataclass
 class User:
@@ -27,6 +29,7 @@ class User:
         sub_start: Дата начала подписки
         sub_end: Дата окончания подписки
         last_updated_info: Последнее обновление информации
+        vote_response: Ответ на голосование (1, 2, 3)
     """
     user_id: str
     username: Optional[str] = None
@@ -41,6 +44,7 @@ class User:
     sub_start: Optional[str] = None
     sub_end: Optional[str] = None
     last_updated_info: Optional[str] = None
+    vote_response: Optional[str] = None
 
     @staticmethod
     def from_dict(data: dict) -> 'User':
@@ -66,7 +70,8 @@ class User:
             is_sub_active=data.get('is_sub_active', 'False') == 'True',
             sub_start=data.get('sub_start'),
             sub_end=data.get('sub_end'),
-            last_updated_info=data.get('last_updated_info')
+            last_updated_info=data.get('last_updated_info'),
+            vote_response=data.get('vote_response')
         )
 
     def to_dict(self) -> dict:
@@ -89,7 +94,8 @@ class User:
             'is_sub_active': 'True' if self.is_sub_active else 'False',
             'sub_start': self.sub_start or '',
             'sub_end': self.sub_end or '',
-            'last_updated_info': self.last_updated_info or ''
+            'last_updated_info': self.last_updated_info or '',
+            'vote_response': self.vote_response or ''
         }
 
 
@@ -124,9 +130,11 @@ class Subscription:
         if not self.end_date:
             return None
         try:
-            date_obj = datetime.strptime(self.end_date, '%Y-%m-%d %H:%M:%S')
-            return date_obj.strftime('%d.%m.%Y')
-        except ValueError:
+            date_obj = parse_datetime_flexible(self.end_date)
+            if date_obj:
+                return date_obj.strftime('%d.%m.%Y')
+            return self.end_date
+        except Exception:
             return self.end_date
 
 
