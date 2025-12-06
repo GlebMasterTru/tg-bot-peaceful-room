@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from app.utils.formatters import parse_datetime_flexible
+
 
 @dataclass
 class User:
@@ -128,9 +130,11 @@ class Subscription:
         if not self.end_date:
             return None
         try:
-            date_obj = datetime.strptime(self.end_date, '%Y-%m-%d %H:%M:%S')
-            return date_obj.strftime('%d.%m.%Y')
-        except ValueError:
+            date_obj = parse_datetime_flexible(self.end_date)
+            if date_obj:
+                return date_obj.strftime('%d.%m.%Y')
+            return self.end_date
+        except Exception:
             return self.end_date
 
 

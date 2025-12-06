@@ -13,6 +13,7 @@ from app.database import (
     get_subscription_status
 )
 from app.database.connection import users_worksheet
+from app.utils.formatters import parse_datetime_flexible
 
 
 # ============================================================================
@@ -51,7 +52,10 @@ async def check_and_expire_subscriptions() -> List[int]:
                 continue
 
             try:
-                sub_end = datetime.strptime(sub_end_str, '%Y-%m-%d %H:%M:%S')
+                sub_end = parse_datetime_flexible(sub_end_str)
+                if not sub_end:
+                    print(f"⚠️ Не удалось распарсить дату {sub_end_str} для {user_id}")
+                    continue
 
                 if sub_end < current_time:
                     update_data = {
@@ -187,7 +191,11 @@ async def check_expired_subscriptions_for_reminders() -> dict:
                 continue
 
             try:
-                sub_end = datetime.strptime(sub_end_str, '%Y-%m-%d %H:%M:%S')
+                sub_end = parse_datetime_flexible(sub_end_str)
+                if not sub_end:
+                    print(f"⚠️ Не удалось распарсить дату {sub_end_str} для {user_id}")
+                    continue
+
                 sub_end_date = sub_end.date()
 
                 # Сколько дней прошло с момента истечения
