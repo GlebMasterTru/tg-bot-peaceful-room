@@ -7,12 +7,52 @@ from datetime import datetime
 from typing import Optional
 
 
+def parse_datetime_flexible(date_str: str) -> Optional[datetime]:
+    """
+    Универсальный парсинг даты из Google Sheets
+    Поддерживает оба формата: ISO и европейский
+
+    Args:
+        date_str: Строка с датой
+
+    Returns:
+        datetime: Распарсенная дата или None при ошибке
+
+    Поддерживаемые форматы:
+        - YYYY-MM-DD HH:MM:SS (ISO)
+        - DD.MM.YYYY HH:MM:SS (европейский)
+        - YYYY-MM-DD
+        - DD.MM.YYYY
+    """
+    if not date_str or not isinstance(date_str, str):
+        return None
+
+    date_str = date_str.strip()
+
+    # Список форматов для попытки парсинга
+    formats = [
+        '%Y-%m-%d %H:%M:%S',  # ISO формат с временем
+        '%d.%m.%Y %H:%M:%S',  # Европейский формат с временем
+        '%Y-%m-%d',           # ISO формат без времени
+        '%d.%m.%Y',           # Европейский формат без времени
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+
+    print(f"⚠️ Не удалось распарсить дату: {date_str}")
+    return None
+
+
 def format_date_for_user(date_str: str) -> str:
     """
     Преобразовать дату из формата БД в человекочитаемый
 
     Args:
-        date_str: Дата в формате 'YYYY-MM-DD HH:MM:SS'
+        date_str: Дата в формате 'YYYY-MM-DD HH:MM:SS' или 'DD.MM.YYYY HH:MM:SS'
 
     Returns:
         str: Дата в формате 'DD.MM.YYYY'
@@ -20,13 +60,17 @@ def format_date_for_user(date_str: str) -> str:
     Examples:
         >>> format_date_for_user('2025-12-31 23:59:59')
         '31.12.2025'
+        >>> format_date_for_user('31.12.2025 23:59:59')
+        '31.12.2025'
     """
     try:
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-        return date_obj.strftime('%d.%m.%Y')
+        date_obj = parse_datetime_flexible(date_str)
+        if date_obj:
+            return date_obj.strftime('%d.%m.%Y')
+        return date_str  # Возвращаем как есть
     except Exception as e:
         print(f"⚠️ Ошибка форматирования даты {date_str}: {e}")
-        return date_str  # Возвращаем как есть
+        return date_str
 
 
 def get_days_word(days: int) -> str:

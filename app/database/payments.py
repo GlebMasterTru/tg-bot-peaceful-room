@@ -15,7 +15,7 @@ from app.database.users import (
     add_user_to_diamond_list,
     users_worksheet
 )
-from app.utils.formatters import clean_telegram_username, format_date_for_user
+from app.utils.formatters import clean_telegram_username, format_date_for_user, parse_datetime_flexible
 
 
 # ============================================================================
@@ -73,7 +73,16 @@ def get_subscription_status(user_id: int) -> dict:
 
         if is_sub_active == 'True':
             try:
-                end_date_obj = datetime.strptime(sub_end, '%Y-%m-%d %H:%M:%S')
+                end_date_obj = parse_datetime_flexible(sub_end)
+                if not end_date_obj:
+                    return {
+                        'status': 'error',
+                        'is_sub_active': True,
+                        'end_date': sub_end,
+                        'end_date_raw': sub_end,
+                        'days_left': 0
+                    }
+
                 current_date = datetime.now()
                 # Сравниваем только даты (без времени) для корректного подсчета дней
                 days_left = (end_date_obj.date() - current_date.date()).days
@@ -178,10 +187,10 @@ def sync_user_subscription(user_id: int, user_username: str) -> Tuple[bool, str,
         for record in user_records:
             end_date_str = record.get('valid to', '')
             try:
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d %H:%M:%S')
-                if max_end_date is None or end_date > max_end_date:
+                end_date = parse_datetime_flexible(end_date_str)
+                if end_date and (max_end_date is None or end_date > max_end_date):
                     max_end_date = end_date
-            except ValueError as e:
+            except Exception as e:
                 print(f"⚠️ Ошибка парсинга даты {end_date_str}: {e}")
                 continue
 
@@ -350,10 +359,10 @@ def _process_user_payment(user: dict, user_records: list) -> bool:
         for record in user_records:
             end_date_str = record.get('valid to', '')
             try:
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d %H:%M:%S')
-                if max_end_date is None or end_date > max_end_date:
+                end_date = parse_datetime_flexible(end_date_str)
+                if end_date and (max_end_date is None or end_date > max_end_date):
                     max_end_date = end_date
-            except ValueError:
+            except Exception:
                 continue
 
         if not max_end_date:
