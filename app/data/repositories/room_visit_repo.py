@@ -161,3 +161,7 @@ class SheetsRoomVisitRepository(IRoomVisitRepository):
         except Exception as e:
             print(f"❌ Ошибка получения последнего посещения {user_id}: {e}")
             return None
+
+
+# Глобальный экземпляр репозитория
+room_visit_repository = SheetsRoomVisitRepository()
